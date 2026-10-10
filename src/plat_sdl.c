@@ -5,8 +5,8 @@
 #include "plat.h"
 #include "game.h"
 
-PSP_MODULE_INFO("SuperPixelSoccer", PSP_MODULE_USER, 1, 0);
-PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
+//PSP_MODULE_INFO("SuperPixelSoccer", PSP_MODULE_USER, 1, 0);
+//PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
 
 static int running = 1;
 static SDL_Window *win;
