@@ -25,6 +25,7 @@ static void setup_callbacks(void) {
 /* botoes do SDL2 no PSP */
 enum { B_TRI = 0, B_CIR, B_CRO, B_SQU, B_L, B_R, B_DOWN, B_LEFT, B_UP, B_RIGHT, B_SEL, B_START };
 
+#undef main
 int main(int argc, char *argv[]) {
   setup_callbacks();
   SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
