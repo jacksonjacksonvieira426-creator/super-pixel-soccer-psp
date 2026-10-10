@@ -1,0 +1,33 @@
+SUPER PIXEL SOCCER PSP  (jogo de fas, nao oficial)
+====================================================
+Roda no Lua Player (Lua Player HM / Euphoria) em PSP com CFW, ou no PPSSPP.
+
+COMO INSTALAR
+1. Instale o Lua Player no PSP (ou no PPSSPP).
+2. Copie a pasta SuperPixelSoccer inteira para a pasta de aplicativos do
+   Lua Player (ex.: ms0:/PSP/GAME/<LuaPlayer>/Applications/SuperPixelSoccer).
+3. Abra o Lua Player e escolha "SuperPixelSoccer".
+   (O arquivo principal e script.lua; o index.lua so chama ele.)
+
+CONTROLES
+  Direcional / analogico ... mover
+  X ... passe (com bola) | trocar jogador (sem bola)
+  O ... chute: segure para carregar a forca e solte | sem bola: carrinho
+  [] ... passe alto (lob)
+  R ... correr
+  START ... pausa
+
+MODOS
+  AMISTOSO    9 times (8 clubes + LENDAS), 6 contra 6
+  CAMPEONATO  pontos corridos, 8 times, 7 rodadas
+  COPA        mata-mata (quartas, semi, final) com penaltis no empate
+  PENALTIS    cobrancas alternadas, voce chuta e defende
+  FUTSAL      quadra, 5 contra 5, bola quica nas paredes
+  TREINO      escolha um craque e faca gols contra goleiro e 2 zagueiros
+  OPCOES      dificuldade, duracao do tempo, som (salvo em save.txt)
+
+ARQUIVOS
+  gfx/atlas.png   sprites (jogadores, bola, aneis)
+  gfx/bg_*.png    campo e quadra
+  sfx/*.wav       efeitos sonoros
+Para trocar nomes/forca dos times, edite a tabela TEAMS em script.lua.

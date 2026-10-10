@@ -1,0 +1,21 @@
+name: Build PSP
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: ghcr.io/pspdev/pspdev:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compilar
+        run: make
+      - name: Montar pacote
+        run: |
+          mkdir -p pkg/SuperPixelSoccer
+          cp EBOOT.PBP pkg/SuperPixelSoccer/
+          cp -r gfx sfx pkg/SuperPixelSoccer/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SuperPixelSoccer-PSP
+          path: pkg
