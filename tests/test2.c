@@ -13,7 +13,7 @@ static void tap(int b) { for (int i = 0; i < 12; i++) TEST_BTN[i] = 0; game_fram
 static int mpos = 0;
 static void gotoItem(int i) { SCENE = SC_MENU; int n = (i - mpos + 8) % 8; for (int k = 0; k < n; k++) tap(B_DOWN); mpos = i; tap(B_CROSS); }
 int main(void) {
-  game_init(); OPT.half = 1;
+  remove("career.dat"); game_init(); OPT.half = 1;
   /* liga completa com humano passivo */
   srand(3); SCENE = SC_MENU;
   newMatch(0, 1, 0, 0, 0, MODE_LEAGUE); /* garante que newMatch funciona */
@@ -24,7 +24,7 @@ int main(void) {
   long guard = 0;
   while (!game_debug(0) && guard < 2000000) { tick(1); guard++; }
   printf("liga: done=%d rodada=%d jogos=%d frames=%ld\n", game_debug(0), game_debug(1), game_debug(5), guard);
-  if (!game_debug(0) || game_debug(5) != 56) return 2;
+  if (!game_debug(0) || game_debug(5) != 132) return 2;
   tap(B_CROSS);
   if (SCENE != SC_MENU) { printf("FALHA: liga nao voltou ao menu (%d)\n", SCENE); return 3; }
   /* copas */

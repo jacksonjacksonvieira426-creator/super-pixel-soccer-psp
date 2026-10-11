@@ -6,6 +6,7 @@
 #include <math.h>
 #include "plat.h"
 #include "frames.h"
+#include "teams.h"
 
 #define SW 480
 #define SH 272
@@ -32,16 +33,17 @@ typedef struct { int r, g, b, a; } Col;
 
 enum { B_UP, B_DOWN, B_LEFT, B_RIGHT, B_CROSS, B_CIRCLE, B_SQUARE, B_TRIANGLE, B_L, B_R, B_START, B_SELECT };
 enum { SC_TITLE, SC_MENU, SC_TEAMSEL, SC_TRAINSEL, SC_OPTS, SC_MATCH, SC_RESULT, SC_PENS, SC_LEAGUE, SC_CUP };
-enum { ST_KICK, ST_PLAY, ST_GOAL, ST_HALF, ST_FULL };
+enum { ST_KICK, ST_PLAY, ST_GOAL, ST_HALF, ST_FULL, ST_FOUL };
 enum { MODE_FRIENDLY, MODE_LEAGUE, MODE_CUP, MODE_TRAIN };
 
-typedef struct { int diff, half, sound; } Opt;
-typedef struct { const char *name, *shortn; int kit; int kits[5]; int nkits; int str; Col col; } Team;
+typedef struct { int diff, half, sound, stadium, music; } Opt;
+typedef struct { const char *name, *shortn; int kit; int kits[5]; int nkits; int str; Col col; int gk; } Team;
 
 typedef struct {
   int t, i, gk;
   float x, y, vx, vy, fx, fy;
   int kick, stun, tack, anim, hold, moving, kit;
+  int nameIdx, yellow, out; float pace, shot, defn;
 } Player;
 
 typedef struct { float x, y, z, vx, vy, vz; Player *owner; int last; } Ball;
@@ -53,22 +55,30 @@ typedef struct {
   int state, st, np, freeze, halfFrames, scorer, kickTeam, humanShot;
   int paused, pmenu, active;
   float charge;
-  const float (*form)[2];
-  int nform;
+  int foulT, foulPen, reds[3], yellows[3];
+  float foulX, foulY;
+  char msg[64];
+  const float (*form[3])[2];
+  int nform, poss[3], formIdx[3];
   Player pl[MAXP];
   Player *ctrl;
   Ball ball;
 } Match;
 
-typedef struct { int s1, s2, t1, t2, mode, shots1, shots2; } Result;
+typedef struct { int s1, s2, t1, t2, mode, shots1, shots2, poss1, poss2; } Result;
 
 /* ---- core ---- */
 extern Match M;
 extern Opt OPT;
-extern Team TEAMS[9];
-extern int SCENE, TICK, NCLUBS;
-extern int T_ATLAS, T_BG_FIELD, T_BG_COURT, T_TITLE, T_FONT;
-extern int S_KICK, S_WHISTLE, S_GOAL, S_POST;
+extern Team TEAMS[NTEAMS];
+extern int SCENE, TICK, UserForm;
+extern int T_ATLAS, T_BG[4], T_BG_COURT, T_TITLE, T_FONT;
+#define T_BG_FIELD T_BG[0]
+extern int S_KICK, S_WHISTLE, S_GOAL, S_POST, S_CHEER, S_MUSIC;
+int bgTex(void);
+int formCount(int futsal);
+const char *formName(int futsal, int i);
+const char *playerName(const Player *p);
 extern Result RES;
 
 void readPad(void);
@@ -86,11 +96,15 @@ void ctxt(int y, const char *s, Col c, int cx);
 void box(int x, int y, int w, int h, Col c);
 void drawBG(int tex);
 void drawFrame(const short *fr, float x, float y);
+void drawKit(int kit, int fi, float x, float y);   /* fi 0 parado, 1 corrida, 2 corrida espelhada */
 void toScreen(float x, float y, float *sx, float *sy);
 void playSnd(int id);
 void saveOpt(void);
 void loadOpt(void);
 
+extern int dbgFouls, dbgReds, dbgYellows, dbgPens;
+void matchPenaltyDone(int att, int goal);
+void startMatchPenalty(int att);
 void newMatch(int t1, int t2, int futsal, int training, int trainKit, int mode);
 void sceneMatch(void);
 void onMatchEnd(int s1, int s2);

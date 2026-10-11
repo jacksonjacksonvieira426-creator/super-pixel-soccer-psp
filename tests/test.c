@@ -21,6 +21,7 @@ int main(void) {
       frame(); frames++;
     }
   }
+  printf("faltas=%d amarelos=%d vermelhos=%d penaltis=%d\n", dbgFouls, dbgYellows, dbgReds, dbgPens);
   printf("frames=%ld blits=%ld rects=%ld\n", frames, TEST_BLITS, TEST_RECTS);
   for (int i = 0; i < 10; i++) printf("cena%d=%d ", i, seen[i]);
   printf("\n");

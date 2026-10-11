@@ -16,7 +16,7 @@ static SDL_Texture *texs[16];
 static int ntex = 0;
 
 #define NSND 8
-typedef struct { Uint8 *buf; Uint32 len; Uint32 pos; int playing; } Snd;
+typedef struct { Uint8 *buf; Uint32 len; Uint32 pos; int playing, loop, vol; } Snd;
 static Snd snds[NSND];
 static int nsnd = 0;
 static SDL_AudioDeviceID adev = 0;
@@ -37,12 +37,14 @@ static void audio_cb(void *ud, Uint8 *stream, int len) {
   memset(stream, 0, len);
   for (int i = 0; i < nsnd; i++) {
     Snd *s = &snds[i];
-    if (!s->playing) continue;
-    Uint32 n = s->len - s->pos;
-    if (n > (Uint32)len) n = (Uint32)len;
-    SDL_MixAudioFormat(stream, s->buf + s->pos, AUDIO_S16, n, SDL_MIX_MAXVOLUME / 2);
-    s->pos += n;
-    if (s->pos >= s->len) s->playing = 0;
+    int left = len, off = 0;
+    while (s->playing && left > 0) {
+      Uint32 n = s->len - s->pos;
+      if (n > (Uint32)left) n = (Uint32)left;
+      SDL_MixAudioFormat(stream + off, s->buf + s->pos, AUDIO_S16, n, s->vol);
+      s->pos += n; off += (int)n; left -= (int)n;
+      if (s->pos >= s->len) { if (s->loop) s->pos = 0; else s->playing = 0; }
+    }
   }
 }
 
@@ -82,6 +84,14 @@ void plat_blit(int tex, int sx, int sy, int w, int h, int dx, int dy, int r, int
     SDL_Rect s = { sx, sy, w, h }, d = { dx, dy, w, h };
     SDL_RenderCopy(ren, t, &s, &d);
   }
+}
+void plat_blit_flip(int tex, int sx, int sy, int w, int h, int dx, int dy, int flip) {
+  if (tex < 0) return;
+  SDL_Texture *t = texs[tex];
+  SDL_SetTextureColorMod(t, 255, 255, 255);
+  SDL_SetTextureAlphaMod(t, 255);
+  SDL_Rect s = { sx, sy, w, h }, d = { dx, dy, w, h };
+  SDL_RenderCopyEx(ren, t, &s, &d, 0, NULL, flip ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
 }
 void plat_rect(int x, int y, int w, int h, int r, int g, int b, int a) {
   SDL_SetRenderDrawColor(ren, r, g, b, a);
@@ -127,12 +137,25 @@ int plat_snd_load(const char *path) {
     SDL_PauseAudioDevice(adev, 0);
   }
   snds[nsnd].buf = buf; snds[nsnd].len = len; snds[nsnd].pos = 0; snds[nsnd].playing = 0;
+  snds[nsnd].loop = 0; snds[nsnd].vol = SDL_MIX_MAXVOLUME / 2;
   return nsnd++;
 }
 void plat_snd_play(int id) {
   if (id < 0 || id >= nsnd || !adev) return;
   SDL_LockAudioDevice(adev);
-  snds[id].pos = 0; snds[id].playing = 1;
+  snds[id].pos = 0; snds[id].loop = 0; snds[id].vol = SDL_MIX_MAXVOLUME / 2; snds[id].playing = 1;
+  SDL_UnlockAudioDevice(adev);
+}
+void plat_snd_loop(int id) {
+  if (id < 0 || id >= nsnd || !adev) return;
+  SDL_LockAudioDevice(adev);
+  snds[id].pos = 0; snds[id].loop = 1; snds[id].vol = SDL_MIX_MAXVOLUME / 5; snds[id].playing = 1;
+  SDL_UnlockAudioDevice(adev);
+}
+void plat_snd_stop(int id) {
+  if (id < 0 || id >= nsnd || !adev) return;
+  SDL_LockAudioDevice(adev);
+  snds[id].playing = 0; snds[id].loop = 0;
   SDL_UnlockAudioDevice(adev);
 }
 unsigned plat_ticks(void) { return SDL_GetTicks(); }
