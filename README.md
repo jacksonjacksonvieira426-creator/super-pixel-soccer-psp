@@ -1,24 +1,22 @@
 # Super Pixel Soccer PSP - Edicao Definitiva
 Jogo de futebol 2D de fas, nao oficial, em C (PSPSDK + SDL2).
 
-## Novidades
-- 21 times: 8 clubes dos sprites originais, 12 times novos com jogadores e uniformes desenhados do zero, e o time LENDAS
-- Jogadores com nome, velocidade, chute e marcacao diferentes
-- 4 formacoes no 6x6 e 3 no futsal (escolha na tela do time)
-- Campeonato de 12 times (11 rodadas) e Copa de 16 times, com CONTINUAR (progresso salvo)
-- 4 estadios: dia, noite, neve e areia (Opcoes)
-- Faltas, cartoes amarelo e vermelho (2 amarelos = vermelho), tiro livre e penalti na partida
-- Posse de bola e chutes no resultado, musica em loop e torcida
-- Faltas, cartoes amarelo e vermelho, tiro livre e penalti marcado dentro da area
-- Sprites novos enviados pelo autor (parado e correndo); 12 times usam esses sprites recoloridos, cada um com 2 jogadores
+## Novidades desta versao
+- **Campo grande 11x11** com camera acompanhando a bola e minimapa (Opcoes > CAMPO)
+- **Taticas**: formacao, mentalidade, pressao, largura e marcacao (menu TATICA ou START > TATICA no jogo)
+- **IA melhor**: passes pelo espaco livre, apoio por funcao, goleiro por angulo, pressao em grupo
+- **Resistencia** dos jogadores e **substituicoes** (3 por jogo) no menu de pausa
+- **Modo Manager**: elenco, escalacao, treino, mercado, financas, metas da diretoria, temporadas, sala de trofeus e salvar/continuar
+- Animacoes novas: chute, defesa do goleiro, torcida reagindo, 4 bolas, estadios
+- 25 times (clubes dos sprites enviados + 12 times recoloridos + LENDAS)
 
 ## Modos
-Amistoso, Campeonato, Copa, Penaltis, Futsal, Treino, Opcoes.
+Amistoso, Campeonato (12 times), Copa (16 times), Modo Manager, Penaltis, Futsal, Treino, Tatica, Opcoes.
 Controles: direcional/analogico move | X passe | O chute (segure) | [] lob | R correr | START pausa.
 
 ## Pastas
-- `src/`    codigo (game_core.c = partida, game_ui.c = menus e modos, plat_sdl.c = PSP)
-- `gfx/` `sfx/`  sprites, fundos e sons (gerados por script, sem material de terceiros nos times novos)
+- `src/`    codigo (game_core.c = partida, game_draw.c = desenho/pausa, game_mgr.c = manager, game_ui.c = menus, plat_sdl.c = PSP)
+- `gfx/` `sfx/`  sprites, fundos e sons
 - `lua/`    versao antiga para Lua Player
 - `tests/`  testes no PC (`sh tests/run_tests.sh`)
 - `.github/workflows/build.yml`  compila o EBOOT.PBP no GitHub Actions

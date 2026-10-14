@@ -12,8 +12,8 @@ static void tick(int pulse) {
 static void tap(int b) { for (int i = 0; i < 12; i++) TEST_BTN[i] = 0; game_frame(); TEST_BTN[b] = 1; game_frame(); TEST_BTN[b] = 0; game_frame(); }
 static int mpos = 0;
 static void gotoItem(int i) { SCENE = SC_MENU; int n = (i - mpos + 8) % 8; for (int k = 0; k < n; k++) tap(B_DOWN); mpos = i; tap(B_CROSS); }
-int main(void) {
-  remove("career.dat"); game_init(); OPT.half = 1;
+int main(int argc, char **argv) {
+  remove("career.dat"); remove("manager.dat"); game_init(); OPT.half = 1; OPT.big = (argc > 1);
   /* liga completa com humano passivo */
   srand(3); SCENE = SC_MENU;
   newMatch(0, 1, 0, 0, 0, MODE_LEAGUE); /* garante que newMatch funciona */
@@ -44,7 +44,7 @@ int main(void) {
   /* penaltis puros, 10 vezes */
   for (int k = 0; k < 10; k++) {
     srand(100 + k);
-    gotoItem(3); tap(B_CROSS);
+    gotoItem(4); tap(B_CROSS);
     if (SCENE != SC_TEAMSEL) { printf("FALHA: escolha do adversario (%d)\n", SCENE); return 7; }
     tap(B_CROSS);
     if (SCENE != SC_PENS) { printf("FALHA: penaltis nao iniciou (%d)\n", SCENE); return 8; }

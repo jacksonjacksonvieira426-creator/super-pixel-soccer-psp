@@ -1,7 +1,7 @@
 TARGET = SuperPixelSoccer
-OBJS = src/game_core.o src/game_ui.o src/plat_sdl.o
+OBJS = src/game_core.o src/game_draw.o src/game_mgr.o src/game_ui.o src/plat_sdl.o
 
-CFLAGS = -O2 -G0 -Wall -D_PSP_FW_VERSION=600 -D_GNU_SOURCE=1 -Dmain=SDL_main $(shell psp-pkg-config --cflags sdl2 SDL_image 2>/dev/null || echo "-I$(shell psp-config --psp-prefix)/include/SDL2")
+CFLAGS = -O2 -G0 -Wall -Dmain=SDL_main -D_PSP_FW_VERSION=600 -D_GNU_SOURCE=1 $(shell psp-pkg-config --cflags sdl2 SDL_image 2>/dev/null || echo "-I$(shell psp-config --psp-prefix)/include/SDL2")
 CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti
 ASFLAGS = $(CFLAGS)
 

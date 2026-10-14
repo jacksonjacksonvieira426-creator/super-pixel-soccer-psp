@@ -12,7 +12,7 @@ static int running = 1;
 static SDL_Window *win;
 static SDL_Renderer *ren;
 static SDL_Joystick *joy;
-static SDL_Texture *texs[16];
+static SDL_Texture *texs[40];
 static int ntex = 0;
 
 #define NSND 8
@@ -64,7 +64,7 @@ void plat_quit(void) {
   sceKernelExitGame();
 }
 int plat_load_tex(const char *path) {
-  if (ntex >= 16) return -1;
+  if (ntex >= 40) return -1;
   SDL_Texture *t = IMG_LoadTexture(ren, path);
   if (!t) return -1;
   SDL_SetTextureBlendMode(t, SDL_BLENDMODE_BLEND);
