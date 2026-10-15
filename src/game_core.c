@@ -2,17 +2,19 @@
 #include "game.h"
 
 Match M;
-Opt OPT = { 2, 2, 1, 0, 1, 0, 0 };
+Opt OPT = { 2, 2, 1, 0, 1, 0, 0, 1, 1 };
 Tac UserTac = { 1, 1, 1, 0 };
-int SCENE = SC_TITLE, TICK = 0, UserForm = 0;
-int T_ATLAS = -1, T_BG[4] = { -1, -1, -1, -1 }, T_BG_COURT = -1, T_TITLE = -1, T_FONT = -1, T_COACH = -1, T_MENU = -1;
+int SCENE = SC_TITLE, TICK = 0, UserForm = 0, NextRule = 0, NextChal = -1;
+int T_ATLAS = -1, T_BG[8] = { -1, -1, -1, -1, -1, -1, -1, -1 }, T_STAND = -1, T_BG_COURT = -1, T_TITLE = -1, T_FONT = -1, T_COACH = -1, T_MENU = -1;
 int T_CROWD[4] = { -1, -1, -1, -1 };
-int S_KICK = -1, S_WHISTLE = -1, S_GOAL = -1, S_POST = -1, S_CHEER = -1, S_MUSIC = -1;
+int S_KICK = -1, S_WHISTLE = -1, S_GOAL = -1, S_POST = -1, S_CHEER = -1, S_MUSIC = -1, S_AMB = -1;
 Result RES;
-int dbgFouls = 0, dbgReds = 0, dbgYellows = 0, dbgPens = 0, dbgAllAI = 0;
+int dbgFouls = 0, dbgReds = 0, dbgYellows = 0, dbgPens = 0, dbgAllAI = 0, dbgOffside = 0, dbgReplays = 0;
 int clampi(int v, int a, int b) { return v < a ? a : (v > b ? b : v); }
 
 Team TEAMS[NTEAMS] = TEAMS_INIT;
+static int rhead = 0, rcount = 0;
+static int wouldBeOffside(const Player *p, const Player *q);
 
 /* ---------------- formacoes: {rx, ry}, rx 0 = proprio gol ---------------- */
 static const float FORMS6[4][6][2] = {
@@ -56,7 +58,14 @@ const char *playerName(const Player *p) {
   if (p->gk && p->roster < 0) return "GOLEIRO";
   return nameOf(p->nameIdx);
 }
-int bgTex(void) { return M.futsal ? T_BG_COURT : T_BG[clampi(OPT.stadium, 0, 3)]; }
+const char *THEME_NAMES[8] = { "DIA", "NOITE", "NEVE", "AREIA", "ARGILA", "ESMERALDA", "CREPUSCULO", "CHUVA" };
+int bgForTheme(int theme) {
+  static const char *files[8] = { "gfx/bg_field.png", "gfx/bg_night.png", "gfx/bg_snow.png", "gfx/bg_sand.png", "gfx/bg_clay.png", "gfx/bg_emerald.png", "gfx/bg_dusk.png", "gfx/bg_rain.png" };
+  theme = clampi(theme, 0, 7);
+  if (T_BG[theme] < 0 && theme > 0) T_BG[theme] = plat_load_tex(files[theme]);
+  return (T_BG[theme] >= 0) ? T_BG[theme] : T_BG[0];
+}
+int bgTex(void) { return M.futsal ? T_BG_COURT : bgForTheme(OPT.stadium); }
 
 /* ---------------- utilitarios ---------------- */
 static int cur[12], prv[12];
@@ -121,21 +130,24 @@ void playSnd(int id) { if (OPT.sound && id >= 0) plat_snd_play(id); }
 void saveOpt(void) {
   FILE *f = fopen("save.txt", "w");
   if (f) {
-    fprintf(f, "%d %d %d %d %d %d %d %d %d %d %d", OPT.diff, OPT.half, OPT.sound, OPT.stadium, OPT.music, OPT.ball, OPT.big,
-            UserTac.ment, UserTac.press, UserTac.width, UserTac.mark);
+    fprintf(f, "%d %d %d %d %d %d %d %d %d %d %d %d %d", OPT.diff, OPT.half, OPT.sound, OPT.stadium, OPT.music, OPT.ball, OPT.big,
+            OPT.replay, OPT.offside, UserTac.ment, UserTac.press, UserTac.width, UserTac.mark);
     fclose(f);
   }
 }
 void loadOpt(void) {
   FILE *f = fopen("save.txt", "r");
   if (f) {
-    int v[11] = { 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0 };
-    int n = fscanf(f, "%d %d %d %d %d %d %d %d %d %d %d", &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9], &v[10]);
+    int v[13] = { 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0 };
+    int n = fscanf(f, "%d %d %d %d %d %d %d %d %d %d %d %d %d", &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9], &v[10], &v[11], &v[12]);
     if (n >= 3 && v[0] >= 1 && v[0] <= 3 && v[1] >= 1 && v[1] <= 3) {
       OPT.diff = v[0]; OPT.half = v[1]; OPT.sound = v[2];
-      OPT.stadium = (n >= 4) ? clampi(v[3], 0, 3) : 0; OPT.music = (n >= 5) ? v[4] : 1;
+      OPT.stadium = (n >= 4) ? clampi(v[3], 0, 7) : 0; OPT.music = (n >= 5) ? v[4] : 1;
       OPT.ball = (n >= 6) ? clampi(v[5], 0, 3) : 0; OPT.big = (n >= 7) ? (v[6] != 0) : 0;
-      if (n >= 11) { UserTac.ment = clampi(v[7], 0, 2); UserTac.press = clampi(v[8], 0, 2); UserTac.width = clampi(v[9], 0, 2); UserTac.mark = clampi(v[10], 0, 1); }
+      if (n >= 13) {
+        OPT.replay = (v[7] != 0); OPT.offside = (v[8] != 0);
+        UserTac.ment = clampi(v[9], 0, 2); UserTac.press = clampi(v[10], 0, 2); UserTac.width = clampi(v[11], 0, 2); UserTac.mark = clampi(v[12], 0, 1);
+      }
     }
     fclose(f);
   }
@@ -218,6 +230,7 @@ void newMatch(int t1, int t2, int futsal, int training, int trainKit, int mode) 
   M.futsal = futsal; M.training = training; M.trainKit = trainKit;
   M.half = 1; M.dir[1] = 1; M.dir[2] = -1; M.active = 1; M.subsLeft = 3;
   M.mgr = (MGR.active && mode == MODE_LEAGUE && t1 == MGR.team);
+  M.rule = NextRule; NextRule = 0; M.chal = NextChal; NextChal = -1;
   int big = ((OPT.big || M.mgr) && !futsal && !training);
   setFieldSize(big);
   M.cx = FL / 2; M.cy = FW / 2;
@@ -266,10 +279,12 @@ void newMatch(int t1, int t2, int futsal, int training, int trainKit, int mode) 
       if (training && ti == 1) { p->pace = 1.1f; p->shot = 1.1f; p->defn = 1.0f; }
     }
   }
+  if (M.chal >= 0) chalSetup(M.chal);
   startKickoff(1);
 }
 
 static void startKickoff(int ti) {
+  rcount = 0; rhead = 0; M.offQ = NULL;
   M.kickTeam = ti; M.state = ST_KICK; M.st = 80;
   Ball *b = &M.ball;
   b->x = FL / 2; b->y = FW / 2; b->z = b->vx = b->vy = b->vz = 0; b->owner = NULL; b->lastp = NULL;
@@ -332,6 +347,7 @@ static void releaseBall(Player *p) {
 
 static void doShoot(Player *p, float power, int hasAim, float ax, float ay) {
   Ball *b = &M.ball;
+  M.offQ = NULL;
   releaseBall(p);
   float dx, dy;
   normf(atkX(p->t) - p->x, goalCY() - p->y, &dx, &dy);
@@ -385,6 +401,7 @@ static Player *pickMateAI(Player *p, float *outScore) {
     if (q->t != p->t || q == p || q->out) continue;
     float d = dist(p->x, p->y, q->x, q->y);
     if (d < 45 * M.rs || d > 520 * SCL) continue;
+    if (wouldBeOffside(p, q)) continue;
     float open = fminf(1.0f, nearestOpp(q->x, q->y, p->t, NULL) / (140 * M.rs));
     int blk = countBlockers(p->x, p->y, q->x, q->y, p->t, 16 * M.rs);
     float prog = ((q->x - p->x) * dir) / (300 * SCL);
@@ -424,8 +441,10 @@ static Player *pickMate(Player *p, float fxv, float fyv) {
   return best;
 }
 
+static int wouldBeOffside(const Player *p, const Player *q);
 static void doPassTo(Player *p, Player *q, int lob, int human) {
   Ball *b = &M.ball;
+  M.offQ = (q && wouldBeOffside(p, q)) ? q : NULL; M.offT = 150;
   releaseBall(p);
   if (!q) { b->vx = p->fx * 6 * M.bsp; b->vy = p->fy * 6 * M.bsp; playSnd(S_KICK); return; }
   float d = dist(p->x, p->y, q->x, q->y);
@@ -461,14 +480,14 @@ static int attemptTackle(Player *p, Player *o) {
     return 1;
   }
   p->stun = 22;
-  if (!M.training && M.state == ST_PLAY && !p->gk && prob() < 0.40f) callFoul(p, o);
+  if (!M.training && M.rule != 3 && M.state == ST_PLAY && !p->gk && prob() < 0.40f) callFoul(p, o);
   return 0;
 }
 
 static void callFoul(Player *fouler, Player *victim) {
   Ball *b = &M.ball;
   dbgFouls++;
-  M.state = ST_FOUL; M.st = 100;
+  M.state = ST_FOUL; M.st = 100; M.foulKind = 0; M.offQ = NULL;
   M.foulT = victim->t;
   M.foulX = clampf(victim->x, 10, FL - 10); M.foulY = clampf(victim->y, 10, FW - 10);
   float gx = (M.dir[fouler->t] == 1) ? 0.0f : FL;
@@ -497,6 +516,83 @@ static void giveGoalKick(int defT) {
   b->x = ((M.dir[defT] == 1) ? 0.0f : FL) + M.dir[defT] * 20 * M.rs; b->y = FW / 2; b->z = b->vx = b->vy = b->vz = 0;
   gk->x = b->x - M.dir[defT] * 4; gk->y = b->y;
   b->owner = gk; b->last = defT; b->lastp = gk; gk->hold = 0; gk->kick = 0;
+}
+
+/* ---------------- replay dos gols ---------------- */
+#define RBUF 300
+typedef struct {
+  float px[MAXP], py[MAXP], bx, by, bz, cx, cy;
+  short anim[MAXP], ka[MAXP], da[MAXP];
+  unsigned char fl[MAXP];
+} RFrame;
+static RFrame rbuf[RBUF];
+static Match rbackup;
+
+static void replayRecord(void) {
+  RFrame *r = &rbuf[rhead];
+  for (int k = 0; k < M.np; k++) {
+    const Player *p = &M.pl[k];
+    r->px[k] = p->x; r->py[k] = p->y; r->anim[k] = (short)p->anim; r->ka[k] = (short)p->ka; r->da[k] = (short)p->da;
+    r->fl[k] = (unsigned char)((p->moving ? 1 : 0) | (p->out ? 2 : 0) | (p->stun > 0 ? 4 : 0));
+  }
+  r->bx = M.ball.x; r->by = M.ball.y; r->bz = M.ball.z; r->cx = M.cx; r->cy = M.cy;
+  rhead = (rhead + 1) % RBUF;
+  if (rcount < RBUF) rcount++;
+}
+int replayAvailable(void) { return rcount >= 90; }
+static void replayStart(void) {
+  memcpy(&rbackup, &M, sizeof(M));
+  M.state = ST_REPLAY; M.rpos = 0; M.rtick = 0;
+  dbgReplays++;
+}
+static void replayStep(void) {
+  int n = rcount < 240 ? rcount : 240;
+  M.rtick++;
+  if (M.rtick % 2 == 0) M.rpos++;
+  if (M.rpos >= n || hit(B_CROSS) || hit(B_START)) {
+    memcpy(&M, &rbackup, sizeof(M));
+    M.state = ST_GOAL; M.st = 60;
+    return;
+  }
+  int idx = ((rhead - n + M.rpos) % RBUF + RBUF) % RBUF;
+  const RFrame *r = &rbuf[idx];
+  for (int k = 0; k < M.np; k++) {
+    Player *p = &M.pl[k];
+    p->x = r->px[k]; p->y = r->py[k]; p->anim = r->anim[k]; p->ka = r->ka[k]; p->da = r->da[k];
+    p->moving = (r->fl[k] & 1) != 0; p->out = (r->fl[k] & 2) != 0; p->stun = (r->fl[k] & 4) ? 1 : 0;
+  }
+  M.ball.x = r->bx; M.ball.y = r->by; M.ball.z = r->bz; M.ball.owner = NULL;
+  M.cx = r->cx; M.cy = r->cy;
+}
+
+/* ---------------- impedimento ---------------- */
+static int wouldBeOffside(const Player *p, const Player *q) {
+  if (!(M.big && OPT.offside) || q->gk || q->out) return 0;
+  int d = M.dir[p->t];
+  float qa = q->x * d, pa = p->x * d;
+  if (qa <= pa) return 0;
+  if ((q->x - FL / 2) * d <= 0) return 0;
+  float a1 = -1e9f, a2 = -1e9f;
+  for (int k = 0; k < M.np; k++) {
+    const Player *o = &M.pl[k];
+    if (o->t == p->t || o->out) continue;
+    float a = o->x * d;
+    if (a > a1) { a2 = a1; a1 = a; } else if (a > a2) a2 = a;
+  }
+  return qa > a2 + 3;
+}
+
+static void callOffside(Player *q) {
+  Ball *b = &M.ball;
+  dbgOffside++;
+  M.state = ST_FOUL; M.st = 90;
+  M.foulT = (q->t == 1) ? 2 : 1;
+  M.foulX = clampf(q->x, 10, FL - 10); M.foulY = clampf(q->y, 10, FW - 10);
+  M.foulPen = 0; M.foulKind = 1;
+  b->owner = NULL; b->vx = b->vy = b->vz = 0; b->z = 0; b->x = M.foulX; b->y = M.foulY;
+  snprintf(M.msg, sizeof M.msg, "IMPEDIMENTO!");
+  M.offQ = NULL;
+  playSnd(S_WHISTLE);
 }
 
 void matchPenaltyDone(int att, int goal) {
@@ -682,7 +778,27 @@ static void setPiece(int ti, float x, float y) {
   if (y < 8) q->y = y + 6; else if (y > FW - 8) q->y = y - 6;
   b->owner = q; b->last = ti; b->lastp = q; q->hold = 0; q->kick = 0;
   for (int k = 0; k < M.np; k++) { M.pl[k].vx = 0; M.pl[k].vy = 0; }
-  M.freeze = 28;
+  M.freeze = 28; q->hold = 110;
+  int corner = ((x <= 10 || x >= FL - 10) && (y <= 10 || y >= FW - 10));
+  if (corner) {
+    float gx = (x <= 10) ? 0.0f : FL, inw = (x <= 10) ? 1.0f : -1.0f;
+    static const float sp[4][2] = { {70, -60}, {110, 0}, {60, 55}, {150, -95} };
+    int usedA[MAXP] = { 0 }, usedD[MAXP] = { 0 };
+    for (int s = 0; s < 4; s++) {
+      Player *a = NULL, *d = NULL; float ba = -1e9f, bd = 1e9f;
+      for (int k = 0; k < M.np; k++) {
+        Player *p = &M.pl[k];
+        if (p->gk || p->out || p == q) continue;
+        float rxv = M.form[p->t][p->i - 1][0];
+        if (p->t == ti && !usedA[k] && rxv > ba) { ba = rxv; a = p; }
+        if (p->t != ti && !usedD[k] && rxv < bd) { bd = rxv; d = p; }
+      }
+      float sx = gx + inw * sp[s][0] * SCL, sy = FW / 2 + sp[s][1] * SCL;
+      if (a) { a->x = sx; a->y = sy; usedA[a - M.pl] = 1; }
+      if (d) { d->x = sx + inw * 12; d->y = sy + 14; usedD[d - M.pl] = 1; }
+    }
+    M.freeze = 75;
+  }
   if (ti == 1 && !q->gk) M.ctrl = q;
 }
 
@@ -690,6 +806,7 @@ static void onGoal(int ti) {
   M.score[ti]++; M.state = ST_GOAL; M.st = 170; M.scorer = ti;
   Player *lp = M.ball.lastp;
   if (lp && lp->t == ti && ti == 1 && M.mgr && lp->roster >= 0) mgrCredit(lp->roster);
+  if (M.gnc[ti] < 16) M.gn[ti][M.gnc[ti]++] = (lp && lp->t == ti) ? lp->nameIdx : rand() % 64;
   playSnd(S_GOAL); playSnd(S_CHEER);
 }
 
@@ -752,6 +869,8 @@ static void updatePickup(void) {
     }
   }
   if (!best) return;
+  if (M.offQ && best == M.offQ && M.offT > 0 && !M.futsal) { callOffside(best); return; }
+  M.offQ = NULL;
   float sp = sqrtf(b->vx * b->vx + b->vy * b->vy);
   if (best->gk) {
     static const float ccs[3] = { 0.40f, 0.52f, 0.64f };
@@ -799,6 +918,8 @@ static void finishMatch(void) {
   RES.s1 = M.score[1]; RES.s2 = M.score[2];
   RES.t1 = M.team[1]; RES.t2 = M.team[2]; RES.mode = M.mode;
   RES.shots1 = M.shots[1]; RES.shots2 = M.shots[2];
+  RES.chal = M.chal; RES.minute = (int)(M.hf / (float)M.halfFrames * 45) + ((M.half == 2) ? 45 : 0); RES.stars = 0;
+  if (M.chal >= 0) RES.stars = chalStars(M.chal, M.score[1], M.score[2], RES.minute);
   { int tp = M.poss[1] + M.poss[2]; RES.poss1 = tp ? (100 * M.poss[1] / tp) : 50; RES.poss2 = 100 - RES.poss1; }
   SCENE = SC_RESULT;
 }
@@ -832,12 +953,20 @@ void updateMatch(void) {
     if (M.ctrl) humanControl(M.ctrl);
     updateBall(); updateCamera();
     return;
+  } else if (M.state == ST_REPLAY) {
+    replayStep();
+    return;
   } else if (M.state == ST_GOAL) {
     M.st--;
+    if (M.st == 100 && OPT.replay && replayAvailable() && !M.training) { replayStart(); return; }
     updateBall();
     b->x = clampf(b->x, -30, FL + 30);
     for (int k = 0; k < M.np; k++) { M.pl[k].vx *= 0.8f; M.pl[k].vy *= 0.8f; M.pl[k].moving = 0; }
-    if (M.st <= 0) startKickoff(M.training ? 1 : ((M.scorer == 1) ? 2 : 1));
+    if (M.st <= 0) {
+      int end = (M.rule == 1) || (M.rule == 2 && (M.score[1] >= 3 || M.score[2] >= 3));
+      if (end && !M.training) { M.state = ST_FULL; return; }
+      startKickoff(M.training ? 1 : ((M.scorer == 1) ? 2 : 1));
+    }
     updateCamera();
     return;
   } else if (M.state == ST_FOUL) {
@@ -867,7 +996,7 @@ void updateMatch(void) {
     M.hf++;
     if (M.hf >= M.halfFrames) {
       playSnd(S_WHISTLE);
-      if (M.half == 1) { M.state = ST_HALF; M.st = 240; } else M.state = ST_FULL;
+      if (M.half == 1 && !M.single) { M.state = ST_HALF; M.st = 240; } else M.state = ST_FULL;
       return;
     }
   }
@@ -887,4 +1016,6 @@ void updateMatch(void) {
   updatePickup();
   updateBall();
   updateCamera();
+  if (M.offT > 0) { M.offT--; if (M.offT == 0) M.offQ = NULL; }
+  replayRecord();
 }

@@ -39,12 +39,12 @@ typedef struct { int r, g, b, a; } Col;
 #define C_ORANGE COL(255,160,40,255)
 
 enum { B_UP, B_DOWN, B_LEFT, B_RIGHT, B_CROSS, B_CIRCLE, B_SQUARE, B_TRIANGLE, B_L, B_R, B_START, B_SELECT };
-enum { SC_TITLE, SC_MENU, SC_TEAMSEL, SC_TRAINSEL, SC_OPTS, SC_MATCH, SC_RESULT, SC_PENS, SC_LEAGUE, SC_CUP, SC_TACTICS, SC_MGR };
-enum { ST_KICK, ST_PLAY, ST_GOAL, ST_HALF, ST_FULL, ST_FOUL };
+enum { SC_TITLE, SC_MENU, SC_TEAMSEL, SC_TRAINSEL, SC_OPTS, SC_MATCH, SC_RESULT, SC_PENS, SC_LEAGUE, SC_CUP, SC_TACTICS, SC_MGR, SC_HELP, SC_PREMATCH, SC_CHAL, SC_STATS };
+enum { ST_KICK, ST_PLAY, ST_GOAL, ST_HALF, ST_FULL, ST_FOUL, ST_REPLAY };
 enum { MODE_FRIENDLY, MODE_LEAGUE, MODE_CUP, MODE_TRAIN };
 enum { PM_MAIN, PM_TACTIC, PM_SUBS };
 
-typedef struct { int diff, half, sound, stadium, music, ball, big; } Opt;
+typedef struct { int diff, half, sound, stadium, music, ball, big, replay, offside; } Opt;
 typedef struct { int ment, press, width, mark; } Tac;   /* mentalidade, pressao, largura, marcacao */
 typedef struct { const char *name, *shortn; int kit; int kits[5]; int nkits; int str; Col col; int gk; } Team;
 
@@ -63,9 +63,11 @@ typedef struct {
   int mode, futsal, training, trainKit, big, mgr;
   int score[3], shots[3], half, hf, dir[3];
   int state, st, np, freeze, halfFrames, scorer, kickTeam, humanShot;
-  int paused, pmenu, pkind, active, psel;
+  int paused, pmenu, pkind, active, psel, rule, chal, single;
   float charge;
-  int foulT, foulPen, reds[3], yellows[3];
+  int foulT, foulPen, foulKind, reds[3], yellows[3];
+  int gn[3][16], gnc[3];
+  Player *offQ; int offT, rpos, rtick;
   float foulX, foulY;
   char msg[64];
   const float (*form[3])[2];
@@ -78,18 +80,23 @@ typedef struct {
   Ball ball;
 } Match;
 
-typedef struct { int s1, s2, t1, t2, mode, shots1, shots2, poss1, poss2; } Result;
+typedef struct { int s1, s2, t1, t2, mode, shots1, shots2, poss1, poss2, chal, stars, minute; } Result;
 
 /* ---- core ---- */
 extern Match M;
 extern Opt OPT;
 extern Team TEAMS[NTEAMS];
 extern Tac UserTac;
-extern int SCENE, TICK, UserForm;
-extern int T_ATLAS, T_BG[4], T_BG_COURT, T_TITLE, T_FONT, T_COACH, T_MENU, T_CROWD[4];
+extern int SCENE, TICK, UserForm, NextRule, NextChal;
+extern int T_ATLAS, T_BG[8], T_STAND, T_BG_COURT, T_TITLE, T_FONT, T_COACH, T_MENU, T_CROWD[4];
 #define T_BG_FIELD T_BG[0]
-extern int S_KICK, S_WHISTLE, S_GOAL, S_POST, S_CHEER, S_MUSIC;
+extern int S_KICK, S_WHISTLE, S_GOAL, S_POST, S_CHEER, S_MUSIC, S_AMB;
 int bgTex(void);
+int bgForTheme(int theme);
+extern const char *THEME_NAMES[8];
+void chalSetup(int id);
+int chalStars(int id, int s1, int s2, int minute);
+void statsRecord(int s1, int s2);
 int formKind(int futsal);
 int formCount(int kind);
 const char *formName(int kind, int i);
@@ -118,7 +125,7 @@ void playSnd(int id);
 void saveOpt(void);
 void loadOpt(void);
 
-extern int dbgFouls, dbgReds, dbgYellows, dbgPens, dbgAllAI;
+extern int dbgFouls, dbgReds, dbgYellows, dbgPens, dbgAllAI, dbgOffside, dbgReplays;
 void matchPenaltyDone(int att, int goal);
 void startMatchPenalty(int att);
 void newMatch(int t1, int t2, int futsal, int training, int trainKit, int mode);
@@ -127,6 +134,7 @@ void sceneMatch(void);
 void updateMatch(void);
 void onMatchEnd(int s1, int s2);
 void drawMatchView(void);
+int replayAvailable(void);
 void drawHUD(void);
 int tacEdit(Tac *t, int *formIdx, int kind, int y0, int *sel);
 void doSubstitution(int playerIdx);
@@ -135,14 +143,14 @@ int formRole(int kind, int form, int slot);
 Player *nearestField(int ti, float x, float y, const Player *skip);
 
 /* ---- manager ---- */
-typedef struct { int name, pos, ovr, age, goals, games, price, fit; } MPl;
+typedef struct { int name, pos, ovr, age, goals, games, price, fit, inj; } MPl;
 typedef struct {
   int magic, active, team, coach, season, money, nsq, sub, sel, sel2;
   MPl sq[26];
   int xi[11];
   Tac tac; int form, train;
   MPl market[8]; int nmarket;
-  int trophies[5], lastPrize, lastIncome, lastWages, boardGoal, scorerBest;
+  int injuries, trophies[5], lastPrize, lastIncome, lastWages, boardGoal, scorerBest;
 } Mgr;
 extern Mgr MGR;
 int mgrAssign(int slot, int role, int *nameIdx, float *pace, float *shot, float *defn, int *roster);
@@ -157,6 +165,8 @@ void mgrClear(void);
 const char *mgrPosName(int pos);
 const char *nameOf(int idx);
 void leagueStart(int team);
+void leagueSetUseMatch(int v);
+int leagueScorers(int *team, int *name, int *goals, int max);
 void leaguePlayMatch(void);
 int leagueIsDone(void);
 int leagueRoundNo(void);

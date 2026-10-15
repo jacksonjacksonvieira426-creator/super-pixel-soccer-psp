@@ -20,14 +20,44 @@ static void wcircle(float cx, float cy, float r, Col c, float a0, float a1) {
   }
 }
 
+typedef struct { Col a, b, out, board, line; int pat, tr, tg, tb; } Theme;
+static const Theme TH[8] = {
+  { {38,128,48,255}, {45,140,56,255}, {26,96,38,255}, {20,30,70,255}, {240,240,240,255}, 0, 255,255,255 },
+  { {18,70,38,255}, {22,80,44,255}, {12,45,28,255}, {10,12,35,255}, {210,215,230,255}, 0, 90,100,150 },
+  { {200,215,225,255}, {220,232,240,255}, {170,190,205,255}, {40,60,100,255}, {110,140,200,255}, 2, 220,230,255 },
+  { {214,184,120,255}, {224,196,132,255}, {190,160,100,255}, {120,60,20,255}, {255,255,255,255}, 3, 255,230,190 },
+  { {176,92,48,255}, {188,102,56,255}, {150,76,40,255}, {30,50,90,255}, {245,245,245,255}, 0, 255,200,170 },
+  { {20,95,60,255}, {26,108,70,255}, {14,70,45,255}, {15,25,55,255}, {235,245,240,255}, 1, 190,255,220 },
+  { {70,110,50,255}, {78,120,58,255}, {50,80,40,255}, {60,30,70,255}, {255,235,210,255}, 3, 255,170,130 },
+  { {44,100,70,255}, {50,110,78,255}, {34,78,56,255}, {20,34,60,255}, {225,235,245,255}, 0, 150,170,200 }
+};
+
+static void drawStands(const Theme *th) {
+  if (T_STAND < 0) return;
+  for (int row = 0; row < 2; row++) {
+    float ty = -76.0f - row * 40.0f, by = FW + 28.0f + row * 40.0f;
+    float x0 = floorf((M.cx - 240) / 64.0f) * 64.0f;
+    for (float x = x0; x < M.cx + 304; x += 64) {
+      float sx, sy;
+      toScreen(x, ty, &sx, &sy);
+      if (sy > -40 && sy < SH) plat_blit(T_STAND, 0, 0, 64, 40, (int)sx, (int)sy, th->tr, th->tg, th->tb, 255);
+      toScreen(x, by, &sx, &sy);
+      if (sy > -40 && sy < SH) plat_blit(T_STAND, 0, 0, 64, 40, (int)sx, (int)sy, th->tr, th->tg, th->tb, 255);
+    }
+  }
+}
+
 static void drawBigPitch(void) {
-  const Col grassA = COL(38, 128, 48, 255), grassB = COL(45, 140, 56, 255), out = COL(26, 96, 38, 255);
-  const Col line = COL(240, 240, 240, 255);
-  box(0, 0, SW, SH, out);
-  for (int i = 0; i < 17; i++) wrect(i * 100.0f, 0, 100, FW, (i % 2) ? grassA : grassB);
+  const Theme *th = &TH[clampi(OPT.stadium, 0, 7)];
+  const Col line = th->line;
+  box(0, 0, SW, SH, th->out);
+  drawStands(th);
+  if (th->pat == 1) { for (int i = 0; i < 17; i++) for (int j = 0; j < 9; j++) wrect(i * 100.0f, j * 100.0f, 100, 100, ((i + j) % 2) ? th->a : th->b); }
+  else if (th->pat >= 2) { for (int j = 0; j < 10; j++) wrect(0, j * 95.0f, FL, 95, (j % 2) ? th->a : th->b); }
+  else { for (int i = 0; i < 17; i++) wrect(i * 100.0f, 0, 100, FW, (i % 2) ? th->a : th->b); }
   /* faixa de publicidade */
-  wrect(-40, -26, FL + 80, 14, COL(20, 30, 70, 255));
-  wrect(-40, FW + 12, FL + 80, 14, COL(20, 30, 70, 255));
+  wrect(-40, -26, FL + 80, 14, th->board);
+  wrect(-40, FW + 12, FL + 80, 14, th->board);
   for (int i = 0; i < 20; i++) { wrect(-30 + i * 90.0f, -23, 40, 8, COL(230, 200, 40, 255)); wrect(-30 + i * 90.0f, FW + 15, 40, 8, COL(230, 200, 40, 255)); }
   /* linhas */
   wrect(0, 0, FL, 3, line); wrect(0, FW - 3, FL, 3, line);
@@ -103,8 +133,12 @@ void drawHUD(void) {
   if (M.state == ST_KICK && M.st > 20) ctxt(110, "PREPARAR...", C_WHITE, 240);
   if (M.state == ST_FOUL) {
     box(100, 95, 280, 46, C_DIM);
-    ctxt(103, M.foulPen ? "PENALTI!" : "TIRO LIVRE", C_YELLOW, 240);
-    ctxt(122, M.msg, (strstr(M.msg, "VERMELHO")) ? C_RED : C_WHITE, 240);
+    ctxt(103, M.foulKind == 1 ? "IMPEDIMENTO!" : (M.foulPen ? "PENALTI!" : "TIRO LIVRE"), C_YELLOW, 240);
+    ctxt(122, M.foulKind == 1 ? "tiro livre indireto" : M.msg, (strstr(M.msg, "VERMELHO")) ? C_RED : C_WHITE, 240);
+  }
+  if (M.state == ST_REPLAY) {
+    if ((TICK / 20) % 2 == 0) { box(196, 40, 88, 16, COL(200, 30, 30, 220)); ctxt(43, "REPLAY", C_WHITE, 240); }
+    ctxt(246, "X pula", C_WHITE, 240);
   }
   if (M.reds[1] || M.reds[2] || M.yellows[1] || M.yellows[2]) {
     for (int t = 1; t <= 2; t++) {
@@ -113,7 +147,7 @@ void drawHUD(void) {
       for (int i = 0; i < M.reds[t] && i < 3; i++) box(x0 + 26 + i * 6, 17, 4, 5, COL(230, 40, 40, 255));
     }
   }
-  if (M.state == ST_GOAL) {
+  if (M.state == ST_GOAL && M.st > 100 - 1000) {
     if (T_CROWD[0] >= 0) plat_blit(T_CROWD[0], 0, 0, 0, 0, 0, 208, 255, 255, 255, 255);
     box(120, 95, 240, 50, C_DIM);
     ctxt(103, "GOOOL!", C_YELLOW, 240);
@@ -136,6 +170,7 @@ void drawHUD(void) {
 
 void drawMatchView(void) {
   if (M.big) drawBigPitch(); else drawBG(bgTex());
+  if (M.rule == 1) txt(4, 40, "GOL DE OURO", C_YELLOW); else if (M.rule == 2) txt(4, 40, "1o A 3 GOLS", C_YELLOW); else if (M.rule == 3) txt(4, 40, "SEM FALTAS", C_YELLOW);
   Item items[MAXP + 1]; int n = 0;
   for (int k = 0; k < M.np; k++) { if (M.pl[k].out) continue; items[n].y = M.pl[k].y; items[n].ball = 0; items[n].p = &M.pl[k]; n++; }
   items[n].y = M.ball.y + 0.5f; items[n].ball = 1; items[n].p = NULL; n++;

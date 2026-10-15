@@ -65,7 +65,7 @@ void startMatchPenalty(int att) {
 
 static void scenePens(void) {
   if (!PEN.active) { SCENE = SC_MENU; return; }
-  drawBG(T_BG[clampi(OPT.stadium, 0, 3)]);
+  drawBG(bgForTheme(OPT.stadium));
   int ti = PEN.turn, kicker = (ti == 1);
   float spotX = PFL - 110, sx0, sy0, gsx, gsy;
   toScreenSmall(spotX, PFW / 2, &sx0, &sy0);
@@ -194,7 +194,10 @@ static struct {
   int team[NL];
   Row tb[NL];
   int rounds[NL - 1][NL / 2][2];
+  int nsc;
+  short sct[48], scn[48], scg[48];
 } LG;
+static int useMatchScorers = 1, showSc = 0;
 
 static int simGoals(float mu) {
   if (mu < 0.3f) mu = 0.3f;
@@ -210,7 +213,7 @@ static void simMatch(int a, int b, int *ga, int *gb) {
 
 /* ---- carreira (salvar / continuar) ---- */
 static struct { int user, round, n, slots[16], alive, champion, active, opp; } CP;
-#define SAVE_MAGIC 0x53505333
+#define SAVE_MAGIC 0x53505334
 static int saveKind = 0;
 static int careerKind(void) {
   FILE *f = fopen("career.dat", "rb");
@@ -268,6 +271,28 @@ static void newLeague(int user) {
   saveCareer();
 }
 
+static void addScorer(int teamId, int name) {
+  for (int i = 0; i < LG.nsc; i++) if (LG.sct[i] == teamId && LG.scn[i] == name) { LG.scg[i]++; return; }
+  if (LG.nsc < 48) { LG.sct[LG.nsc] = (short)teamId; LG.scn[LG.nsc] = (short)name; LG.scg[LG.nsc] = 1; LG.nsc++; return; }
+  int mi = 0; for (int i = 1; i < 48; i++) if (LG.scg[i] < LG.scg[mi]) mi = i;
+  if (LG.scg[mi] <= 1) { LG.sct[mi] = (short)teamId; LG.scn[mi] = (short)name; LG.scg[mi] = 1; }
+}
+static void creditGoals(int local, int goals, int side) {
+  for (int g = 0; g < goals; g++) {
+    int nm = (useMatchScorers && side && g < M.gnc[side]) ? M.gn[side][g] : rand() % 64;
+    addScorer(LG.team[local], nm);
+  }
+}
+void leagueSetUseMatch(int v) { useMatchScorers = v; }
+int leagueScorers(int *team, int *name, int *goals, int max) {
+  int idx[48], n = LG.nsc;
+  for (int i = 0; i < n; i++) idx[i] = i;
+  for (int i = 0; i < n - 1; i++) for (int j = i + 1; j < n; j++) if (LG.scg[idx[j]] > LG.scg[idx[i]]) { int t = idx[i]; idx[i] = idx[j]; idx[j] = t; }
+  int m = n < max ? n : max;
+  for (int i = 0; i < m; i++) { team[i] = LG.sct[idx[i]]; name[i] = LG.scn[idx[i]]; goals[i] = LG.scg[idx[i]]; }
+  return m;
+}
+
 static void recordResult(int a, int b, int ga, int gb) {
   Row *A = &LG.tb[a], *B = &LG.tb[b];
   A->p++; B->p++;
@@ -310,9 +335,11 @@ static void leagueMatchEnd(int s1, int s2) {
   for (int i = 0; i < NL / 2; i++) {
     int a = LG.rounds[LG.round - 1][i][0], b = LG.rounds[LG.round - 1][i][1];
     if (i == fx) {
-      if (a == 0) recordResult(a, b, s1, s2); else recordResult(a, b, s2, s1);
+      if (a == 0) { recordResult(a, b, s1, s2); creditGoals(a, s1, 1); creditGoals(b, s2, 2); }
+      else { recordResult(a, b, s2, s1); creditGoals(b, s1, 1); creditGoals(a, s2, 2); }
     } else {
       int x, y; simMatch(LG.team[a], LG.team[b], &x, &y); recordResult(a, b, x, y);
+      creditGoals(a, x, 0); creditGoals(b, y, 0);
     }
   }
   LG.round++;
@@ -324,6 +351,20 @@ static void leagueMatchEnd(int s1, int s2) {
 static void sceneLeague(void) {
   char buf[128];
   drawBG(T_BG[0]); box(0, 0, SW, SH, COL(0, 0, 0, 170));
+  if (hit(B_SQUARE)) showSc = !showSc;
+  if (showSc) {
+    int tt[10], nn[10], gg[10];
+    int m = leagueScorers(tt, nn, gg, 10);
+    ctxt(8, "ARTILHARIA", C_YELLOW, 240);
+    if (m == 0) ctxt(120, "Ainda sem gols", C_GREY, 240);
+    for (int i = 0; i < m; i++) {
+      snprintf(buf, sizeof buf, "%2d  %-9s %-10s  %2d", i + 1, nameOf(nn[i]), TEAMS[tt[i]].shortn, gg[i]);
+      txt(110, 34 + i * 18, buf, (tt[i] == LG.team[0]) ? C_YELLOW : C_WHITE);
+    }
+    ctxt(236, "[] volta para a tabela", C_GREY, 240);
+    if (hit(B_TRIANGLE)) { showSc = 0; SCENE = MGR.active ? SC_MGR : SC_MENU; }
+    return;
+  }
   ctxt(6, "CAMPEONATO", C_YELLOW, 240);
   int ids[NL]; sortedLeague(ids);
   txt(30, 22, "#  TIME", C_GREY);
@@ -352,7 +393,7 @@ static void sceneLeague(void) {
     int o = (a == 0) ? b : a;
     snprintf(buf, sizeof buf, "RODADA %d/%d:  %s x %s", LG.round, NL - 1, TEAMS[LG.team[0]].shortn, TEAMS[LG.team[o]].shortn);
     ctxt(214, buf, C_WHITE, 240);
-    ctxt(238, "X jogar    TRIANGULO sair (progresso salvo)", C_GREY, 240);
+    ctxt(238, "X jogar  [] artilharia  TRIANGULO sai", C_GREY, 240);
     if (hit(B_CROSS)) leaguePlay();
     if (hit(B_TRIANGLE)) SCENE = MGR.active ? SC_MGR : SC_MENU;
   }
@@ -442,11 +483,16 @@ static void sceneCup(void) {
 }
 
 /* ============================================================ MENUS */
-enum { A_CONT, A_MCONT, A_FRIENDLY, A_LEAGUE, A_CUP, A_MGR, A_PENS, A_FUTSAL, A_TRAIN, A_TACT, A_OPTS, A_QUIT };
-static int menuSel = 0;
+enum { A_CONT, A_MCONT, A_FRIENDLY, A_LEAGUE, A_CUP, A_MGR, A_PENS, A_FUTSAL, A_CHAL, A_TRAIN, A_TACT, A_STATS, A_HELP, A_OPTS, A_QUIT };
+static int menuSel = 0, helpPage = 0;
 static struct { int idx, avoid, only, step, a, action; const char *title; } TS;
 static int trIdx = 0, opSel = 0, tacSel = 0;
-enum { ACT_FRIENDLY, ACT_FUTSAL, ACT_LEAGUE, ACT_CUP, ACT_PENS, ACT_MGR };
+enum { ACT_FRIENDLY, ACT_FUTSAL, ACT_LEAGUE, ACT_CUP, ACT_PENS, ACT_MGR, ACT_CHAL };
+static struct { int a, b, fut, rule, sel; } PRE;
+static int chalSel = 0, chalBest[6];
+static struct { int games, wins, draws, losses, gf, ga, best; } STS;
+static void loadExtras(void);
+static void saveExtras(void);
 
 static void pickTeam(const char *title, int action, int step, int a, int avoid, int only) {
   TS.title = title; TS.action = action; TS.step = step; TS.a = a; TS.avoid = avoid; TS.only = only;
@@ -460,8 +506,9 @@ static void teamChosen(int idx) {
     pickTeam("ADVERSARIO", TS.action, 2, idx, idx, 0);
     return;
   }
-  if (TS.action == ACT_FRIENDLY || TS.action == ACT_FUTSAL) {
-    newMatch(TS.a, idx, TS.action == ACT_FUTSAL, 0, 0, MODE_FRIENDLY); SCENE = SC_MATCH;
+  if (TS.action == ACT_CHAL) { chalSel = 0; PRE.a = idx; SCENE = SC_CHAL; }
+  else if (TS.action == ACT_FRIENDLY || TS.action == ACT_FUTSAL) {
+    PRE.a = TS.a; PRE.b = idx; PRE.fut = (TS.action == ACT_FUTSAL); PRE.rule = 0; PRE.sel = 4; SCENE = SC_PREMATCH;
   } else if (TS.action == ACT_PENS) {
     newPens(TS.a, idx, 0);
   } else if (TS.action == ACT_LEAGUE) newLeague(idx);
@@ -471,6 +518,11 @@ static void teamChosen(int idx) {
 
 void onMatchEnd(int s1, int s2) {
   M.active = 0;
+  if (RES.mode != MODE_TRAIN) statsRecord(s1, s2);
+  if (RES.chal >= 0) {
+    if (RES.stars > chalBest[RES.chal]) chalBest[RES.chal] = RES.stars;
+    saveExtras(); SCENE = SC_CHAL; return;
+  }
   if (RES.mode == MODE_LEAGUE && MGR.active) { leagueMatchEnd(s1, s2); mgrAfterMatch(s1, s2); SCENE = SC_MGR; }
   else if (RES.mode == MODE_LEAGUE) leagueMatchEnd(s1, s2);
   else if (RES.mode == MODE_CUP) cupMatchEnd(s1, s2);
@@ -490,20 +542,23 @@ static void sceneTitle(void) {
 }
 
 static void sceneMenu(void) {
-  static const char *labels[12] = { "CONTINUAR CARREIRA", "CONTINUAR MANAGER", "AMISTOSO", "CAMPEONATO", "COPA", "MODO MANAGER", "PENALTIS", "FUTSAL", "TREINO", "TATICA", "OPCOES", "SAIR" };
-  int acts[12], n = 0;
+  static const char *labels[15] = { "CONTINUAR CARREIRA", "CONTINUAR MANAGER", "AMISTOSO", "CAMPEONATO", "COPA", "MODO MANAGER", "PENALTIS", "FUTSAL", "DESAFIOS", "TREINO", "TATICA", "RECORDES", "COMO JOGAR", "OPCOES", "SAIR" };
+  int acts[15], n = 0;
   if (saveKind) acts[n++] = A_CONT;
   if (mgrSaved()) acts[n++] = A_MCONT;
   for (int a = A_FRIENDLY; a <= A_QUIT; a++) acts[n++] = a;
   if (menuSel >= n) menuSel = 0;
   drawBG(T_MENU >= 0 ? T_MENU : T_BG[0]); box(0, 0, SW, SH, COL(0, 0, 0, 150));
   ctxt(6, "MENU PRINCIPAL", C_YELLOW, 240);
-  int step = (n > 10) ? 19 : 22;
-  for (int i = 0; i < n; i++) {
-    int y = 24 + i * step;
-    if (menuSel == i) box(130, y - 3, 220, step - 2, C_SEL);
+  int rows = 9, top = clampi(menuSel - 4, 0, n > rows ? n - rows : 0);
+  for (int i = top; i < n && i < top + rows; i++) {
+    int y = 26 + (i - top) * 22;
+    if (menuSel == i) box(120, y - 4, 240, 20, C_SEL);
     ctxt(y, labels[acts[i]], (menuSel == i) ? C_BLACK : C_WHITE, 240);
   }
+  if (top > 0) ctxt(20, "^", C_YELLOW, 240);
+  if (top + rows < n) ctxt(226, "v", C_YELLOW, 240);
+  { char nb[40]; snprintf(nb, sizeof nb, "%d/%d", menuSel + 1, n); txt(430, 258, nb, C_GREY); }
   if (hit(B_UP)) menuSel = (menuSel > 0) ? menuSel - 1 : n - 1;
   if (hit(B_DOWN)) menuSel = (menuSel < n - 1) ? menuSel + 1 : 0;
   if (hit(B_CROSS)) {
@@ -516,12 +571,166 @@ static void sceneMenu(void) {
       case A_MGR: pickTeam("ESCOLHA SEU CLUBE", ACT_MGR, 1, 0, -1, 1); break;
       case A_PENS: pickTeam("SEU TIME", ACT_PENS, 1, 0, -1, 0); break;
       case A_FUTSAL: pickTeam("SEU TIME", ACT_FUTSAL, 1, 0, -1, 0); break;
+      case A_CHAL: pickTeam("DESAFIOS: SEU TIME", ACT_CHAL, 1, 0, -1, 1); break;
       case A_TRAIN: trIdx = 0; SCENE = SC_TRAINSEL; break;
       case A_TACT: tacSel = 0; SCENE = SC_TACTICS; break;
+      case A_STATS: SCENE = SC_STATS; break;
+      case A_HELP: helpPage = 0; SCENE = SC_HELP; break;
       case A_OPTS: opSel = 0; SCENE = SC_OPTS; break;
       case A_QUIT: SCENE = -1; break;
     }
   }
+}
+
+/* ---------------- desafios, recordes e apresentacao ---------------- */
+typedef struct { const char *name, *d1, *d2; int opp; } Chal;
+static const Chal CH[6] = {
+  { "RELAMPAGO",   "Um tempo so de 60s. Venca!", "2 gols de saldo = 2 estrelas, 3 = 3", 4 },
+  { "UM A MENOS",  "Voce comeca com 1 expulso.", "Nao perca (1), venca (2), venca por 2 (3)", 3 },
+  { "VIRADA",      "Comeca perdendo por 0 x 2.", "Empate (1), vitoria (2), vitoria por 2 (3)", 6 },
+  { "MURALHA",     "Contra um time muito forte.", "Nao perca (1), empate sem sofrer (2), venca sem sofrer (3)", 1 },
+  { "ESPETACULO",  "Dois tempos curtos de 75s.", "Marque 3 (1), 5 (2) ou 7 gols (3)", 7 },
+  { "GOL DE OURO", "O primeiro gol decide.", "Venca! Ate 30 min (2), ate 15 min (3)", 2 }
+};
+void chalSetup(int id) {
+  switch (id) {
+    case 0: M.single = 1; M.halfFrames = 60 * 60; break;
+    case 1: for (int k = 0; k < M.np; k++) if (M.pl[k].t == 1 && M.pl[k].i == M.nform) { M.pl[k].out = 1; M.reds[1] = 1; } break;
+    case 2: M.score[2] = 2; break;
+    case 3: M.tac[2].ment = 2; M.tac[2].press = 2; M.tac[2].width = 1; M.tac[2].mark = 0; break;
+    case 4: M.halfFrames = 75 * 60; break;
+    case 5: M.rule = 1; break;
+  }
+}
+int chalStars(int id, int s1, int s2, int minute) {
+  int d = s1 - s2;
+  switch (id) {
+    case 0: return d > 0 ? (d >= 3 ? 3 : (d >= 2 ? 2 : 1)) : 0;
+    case 1: case 2: return d < 0 ? 0 : (d == 0 ? 1 : (d >= 2 ? 3 : 2));
+    case 3: return d < 0 ? 0 : (s2 == 0 ? (d > 0 ? 3 : 2) : 1);
+    case 4: return s1 >= 7 ? 3 : (s1 >= 5 ? 2 : (s1 >= 3 ? 1 : 0));
+    case 5: return d > 0 ? (minute <= 15 ? 3 : (minute <= 30 ? 2 : 1)) : 0;
+  }
+  return 0;
+}
+void statsRecord(int s1, int s2) {
+  STS.games++; STS.gf += s1; STS.ga += s2;
+  if (s1 > s2) { STS.wins++; if (s1 - s2 > STS.best) STS.best = s1 - s2; } else if (s1 == s2) STS.draws++; else STS.losses++;
+  saveExtras();
+}
+static void saveExtras(void) {
+  FILE *f = fopen("extras.txt", "w");
+  if (!f) return;
+  fprintf(f, "%d %d %d %d %d %d %d", STS.games, STS.wins, STS.draws, STS.losses, STS.gf, STS.ga, STS.best);
+  for (int i = 0; i < 6; i++) fprintf(f, " %d", chalBest[i]);
+  fclose(f);
+}
+static void loadExtras(void) {
+  FILE *f = fopen("extras.txt", "r");
+  if (!f) return;
+  int v[13] = { 0 };
+  int n = fscanf(f, "%d %d %d %d %d %d %d %d %d %d %d %d %d", &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9], &v[10], &v[11], &v[12]);
+  if (n >= 7) { STS.games = v[0]; STS.wins = v[1]; STS.draws = v[2]; STS.losses = v[3]; STS.gf = v[4]; STS.ga = v[5]; STS.best = v[6]; }
+  if (n >= 13) for (int i = 0; i < 6; i++) chalBest[i] = clampi(v[7 + i], 0, 3);
+  fclose(f);
+}
+
+static void starsStr(char *out, int n) { out[0] = 0; for (int i = 0; i < 3; i++) strcat(out, i < n ? "*" : "-"); }
+
+static void sceneChal(void) {
+  char b[96], st[8];
+  drawBG(T_MENU >= 0 ? T_MENU : T_BG[0]); box(0, 0, SW, SH, COL(0, 0, 0, 165));
+  ctxt(8, "DESAFIOS", C_YELLOW, 240);
+  int tot = 0;
+  for (int i = 0; i < 6; i++) {
+    int y = 28 + i * 24;
+    if (chalSel == i) box(60, y - 3, 360, 22, C_SEL);
+    starsStr(st, chalBest[i]); tot += chalBest[i];
+    snprintf(b, sizeof b, "%d. %-11s %s", i + 1, CH[i].name, st);
+    ctxt(y + 2, b, (chalSel == i) ? C_BLACK : C_WHITE, 240);
+  }
+  snprintf(b, sizeof b, "Estrelas: %d/18", tot); ctxt(176, b, C_YELLOW, 240);
+  box(30, 192, 420, 44, C_PANEL);
+  ctxt(197, CH[chalSel].d1, C_WHITE, 240);
+  ctxt(214, CH[chalSel].d2, C_GREY, 240);
+  snprintf(b, sizeof b, "Seu time: %s   Adversario: %s", TEAMS[PRE.a].shortn, TEAMS[CH[chalSel].opp].shortn);
+  ctxt(244, b, C_GREY, 240);
+  if (hit(B_UP)) chalSel = (chalSel > 0) ? chalSel - 1 : 5;
+  if (hit(B_DOWN)) chalSel = (chalSel < 5) ? chalSel + 1 : 0;
+  if (hit(B_TRIANGLE)) SCENE = SC_MENU;
+  if (hit(B_CROSS)) {
+    int opp = CH[chalSel].opp;
+    if (opp == PRE.a) opp = (opp + 1) % NCLUBS;
+    NextChal = chalSel;
+    newMatch(PRE.a, opp, 0, 0, 0, MODE_FRIENDLY); SCENE = SC_MATCH;
+  }
+}
+
+static void sceneStats(void) {
+  char b[96];
+  drawBG(T_MENU >= 0 ? T_MENU : T_BG[0]); box(0, 0, SW, SH, COL(0, 0, 0, 170));
+  ctxt(10, "RECORDES", C_YELLOW, 240);
+  snprintf(b, sizeof b, "Jogos: %d", STS.games); txt(120, 40, b, C_WHITE);
+  snprintf(b, sizeof b, "Vitorias: %d", STS.wins); txt(120, 58, b, C_GREEN);
+  snprintf(b, sizeof b, "Empates: %d", STS.draws); txt(120, 76, b, C_WHITE);
+  snprintf(b, sizeof b, "Derrotas: %d", STS.losses); txt(120, 94, b, C_RED);
+  snprintf(b, sizeof b, "Gols marcados: %d", STS.gf); txt(120, 118, b, C_WHITE);
+  snprintf(b, sizeof b, "Gols sofridos: %d", STS.ga); txt(120, 136, b, C_WHITE);
+  snprintf(b, sizeof b, "Maior goleada: +%d", STS.best); txt(120, 154, b, C_YELLOW);
+  int tot = 0; for (int i = 0; i < 6; i++) tot += chalBest[i];
+  snprintf(b, sizeof b, "Desafios: %d/18 estrelas", tot); txt(120, 178, b, C_YELLOW);
+  if (STS.games) { snprintf(b, sizeof b, "Aproveitamento: %d%%", (STS.wins * 3 + STS.draws) * 100 / (STS.games * 3)); txt(120, 196, b, C_WHITE); }
+  ctxt(240, "TRIANGULO volta", C_GREY, 240);
+  if (hit(B_TRIANGLE) || hit(B_CROSS)) SCENE = SC_MENU;
+}
+
+static void scenePrematch(void) {
+  char b[64];
+  static const char *rn[4] = { "NORMAL", "GOL DE OURO", "1o A 3 GOLS", "SEM FALTAS" };
+  static const char *hn[3] = { "CURTO (45s)", "MEDIO (90s)", "LONGO (150s)" };
+  static const char *dn[3] = { "FACIL", "NORMAL", "DIFICIL" };
+  drawBG(PRE.fut ? T_BG_COURT : bgForTheme(OPT.stadium)); box(0, 0, SW, SH, COL(0, 0, 0, 120));
+  ctxt(6, "APRESENTACAO", C_YELLOW, 240);
+  const Team *ta = &TEAMS[PRE.a], *tb = &TEAMS[PRE.b];
+  box(20, 24, 190, 84, C_PANEL); box(270, 24, 190, 84, C_PANEL);
+  ctxt(30, ta->name, C_YELLOW, 115); ctxt(30, tb->name, C_YELLOW, 365);
+  int fa = ta->nkits ? ta->kits[0] : ta->kit, fb = tb->nkits ? tb->kits[0] : tb->kit;
+  int ph = (TICK / 10) % 2 ? 1 : 2;
+  drawKit(fa, ph, 90, 84); drawKit(ta->gk, 0, 140, 84);
+  drawKit(fb, ph, 340, 84); drawKit(tb->gk, 0, 390, 84);
+  {
+    char s[8];
+    for (int i = 0; i < 5; i++) s[i] = (i < ta->str) ? '*' : '-';
+    s[5] = 0; ctxt(94, s, C_WHITE, 115);
+    for (int i = 0; i < 5; i++) s[i] = (i < tb->str) ? '*' : '-';
+    s[5] = 0; ctxt(94, s, C_WHITE, 365);
+  }
+  ctxt(56, "X", C_WHITE, 240); ctxt(66, "VS", C_YELLOW, 240);
+  const char *lab[5] = { "REGRA", "ESTADIO", "TEMPO", "DIFICULDADE", "JOGAR" };
+  char val[5][32];
+  snprintf(val[0], 32, "%s", rn[PRE.rule]);
+  snprintf(val[1], 32, "%s", PRE.fut ? "QUADRA" : THEME_NAMES[clampi(OPT.stadium, 0, 7)]);
+  snprintf(val[2], 32, "%s", hn[clampi(OPT.half, 1, 3) - 1]);
+  snprintf(val[3], 32, "%s", dn[clampi(OPT.diff, 1, 3) - 1]);
+  val[4][0] = 0;
+  for (int i = 0; i < 5; i++) {
+    int y = 122 + i * 24;
+    if (PRE.sel == i) box(70, y - 4, 340, 21, C_SEL);
+    Col c = (PRE.sel == i) ? C_BLACK : C_WHITE;
+    if (i < 4) { txt(80, y, lab[i], c); snprintf(b, sizeof b, "< %s >", val[i]); txt(400 - (int)strlen(b) * 8, y, b, c); }
+    else ctxt(y, "JOGAR", c, 240);
+  }
+  if (hit(B_UP)) PRE.sel = (PRE.sel > 0) ? PRE.sel - 1 : 4;
+  if (hit(B_DOWN)) PRE.sel = (PRE.sel < 4) ? PRE.sel + 1 : 0;
+  int d = 0; if (hit(B_LEFT)) d = -1; if (hit(B_RIGHT)) d = 1;
+  if (d) {
+    if (PRE.sel == 0) PRE.rule = (PRE.rule + d + 4) % 4;
+    else if (PRE.sel == 1 && !PRE.fut) OPT.stadium = (OPT.stadium + d + 8) % 8;
+    else if (PRE.sel == 2) OPT.half = clampi(OPT.half + d, 1, 3);
+    else if (PRE.sel == 3) OPT.diff = clampi(OPT.diff + d, 1, 3);
+  }
+  if (hit(B_TRIANGLE)) SCENE = SC_MENU;
+  if (hit(B_CROSS) && PRE.sel == 4) { saveOpt(); NextRule = PRE.rule; newMatch(PRE.a, PRE.b, PRE.fut, 0, 0, MODE_FRIENDLY); SCENE = SC_MATCH; }
 }
 
 static void sceneTeamSel(void) {
@@ -577,23 +786,23 @@ static void sceneTactics(void) {
   ctxt(244, "Durante o jogo: START > TATICA", C_GREY, 240);
 }
 
-static const int STAR_KITS[5] = { KIT_NEYMAR, KIT_MESSI, KIT_PELE, KIT_CR7, KIT_MARA };
-static const char *STAR_NAMES[5] = { "NEYMAR", "MESSI", "PELE", "CR7", "CRAQUE" };
+static const int STAR_KITS[7] = { KIT_NEYMAR, KIT_NEY13, KIT_MESSI, KIT_PELE, KIT_CR7, KIT_MARA, KIT_RIBERY };
+static const char *STAR_NAMES[7] = { "NEYMAR", "NEY 13", "MESSI", "PELE", "CR7", "DINHO", "RIBERY" };
 
 static void sceneTrainSel(void) {
   drawBG(T_BG[0]); box(0, 0, SW, SH, COL(0, 0, 0, 150));
   ctxt(10, "TREINO - ESCOLHA O CRAQUE", C_YELLOW, 240);
-  for (int i = 0; i < 5; i++) {
-    int x = 70 + i * 85;
-    if (trIdx == i) box(x - 28, 80, 60, 90, C_SEL);
+  for (int i = 0; i < 7; i++) {
+    int x = 40 + i * 66;
+    if (trIdx == i) box(x - 30, 80, 60, 90, C_SEL);
     int fi = (trIdx == i && (TICK / 8) % 2 == 0) ? 1 : 0;
     drawKit(STAR_KITS[i], fi, x, 140);
     txt(x - (int)strlen(STAR_NAMES[i]) * 4, 152, STAR_NAMES[i], (trIdx == i) ? C_BLACK : C_WHITE);
   }
   ctxt(200, "Faca gols contra goleiro e 2 zagueiros", C_WHITE, 240);
   ctxt(240, "X jogar     TRIANGULO voltar", C_GREY, 240);
-  if (hit(B_LEFT)) trIdx = (trIdx > 0) ? trIdx - 1 : 4;
-  if (hit(B_RIGHT)) trIdx = (trIdx < 4) ? trIdx + 1 : 0;
+  if (hit(B_LEFT)) trIdx = (trIdx > 0) ? trIdx - 1 : 6;
+  if (hit(B_RIGHT)) trIdx = (trIdx < 6) ? trIdx + 1 : 0;
   if (hit(B_TRIANGLE)) SCENE = SC_MENU;
   if (hit(B_CROSS)) { newMatch(T_LENDAS, 1, 0, 1, STAR_KITS[trIdx], MODE_TRAIN); SCENE = SC_MATCH; }
 }
@@ -601,43 +810,67 @@ static void sceneTrainSel(void) {
 static void sceneOpts(void) {
   static const char *dn[3] = { "FACIL", "NORMAL", "DIFICIL" };
   static const char *hn[3] = { "CURTO (45s)", "MEDIO (90s)", "LONGO (150s)" };
-  static const char *sn[4] = { "DIA", "NOITE", "NEVE", "AREIA" };
+  
   static const char *bn[4] = { "CLASSICA", "BRAZUCA", "INCYTE", "MAXIM" };
   drawBG(T_MENU >= 0 ? T_MENU : T_BG[0]); box(0, 0, SW, SH, COL(0, 0, 0, 160));
-  ctxt(8, "OPCOES", C_YELLOW, 240);
-  char b[8][48];
+  ctxt(6, "OPCOES", C_YELLOW, 240);
+  char b[10][48];
   snprintf(b[0], 48, "DIFICULDADE: %s", dn[clampi(OPT.diff, 1, 3) - 1]);
   snprintf(b[1], 48, "TEMPO POR TEMPO: %s", hn[clampi(OPT.half, 1, 3) - 1]);
-  snprintf(b[2], 48, "ESTADIO: %s", sn[clampi(OPT.stadium, 0, 3)]);
+  snprintf(b[2], 48, "ESTADIO: %s", THEME_NAMES[clampi(OPT.stadium, 0, 7)]);
   snprintf(b[3], 48, "CAMPO: %s", OPT.big ? "GRANDE 11x11" : "PEQUENO 6x6");
   snprintf(b[4], 48, "BOLA: %s", bn[clampi(OPT.ball, 0, 3)]);
-  snprintf(b[5], 48, "SOM: %s", OPT.sound ? "LIGADO" : "DESLIGADO");
-  snprintf(b[6], 48, "MUSICA: %s", OPT.music ? "LIGADA" : "DESLIGADA");
-  snprintf(b[7], 48, "VOLTAR");
-  for (int i = 0; i < 8; i++) {
-    int y = 24 + i * 23;
-    if (opSel == i) box(90, y - 4, 300, 20, C_SEL);
+  snprintf(b[5], 48, "REPLAY DOS GOLS: %s", OPT.replay ? "LIGADO" : "DESLIGADO");
+  snprintf(b[6], 48, "IMPEDIMENTO (11x11): %s", OPT.offside ? "LIGADO" : "DESLIGADO");
+  snprintf(b[7], 48, "SOM: %s", OPT.sound ? "LIGADO" : "DESLIGADO");
+  snprintf(b[8], 48, "MUSICA: %s", OPT.music ? "LIGADA" : "DESLIGADA");
+  snprintf(b[9], 48, "VOLTAR");
+  for (int i = 0; i < 10; i++) {
+    int y = 22 + i * 24;
+    if (opSel == i) box(70, y - 4, 340, 20, C_SEL);
     ctxt(y, b[i], (opSel == i) ? C_BLACK : C_WHITE, 240);
   }
-  drawFrame(FR_BALLS[clampi(OPT.ball, 0, 3)], 420, 100);
-  ctxt(224, "X passe | O chute (segure) | [] lob | R correr", C_GREY, 240);
-  ctxt(240, "O sem bola = carrinho | START pausa", C_GREY, 240);
-  if (hit(B_UP)) opSel = (opSel > 0) ? opSel - 1 : 7;
-  if (hit(B_DOWN)) opSel = (opSel < 7) ? opSel + 1 : 0;
+  drawFrame(FR_BALLS[clampi(OPT.ball, 0, 3)], 440, 90);
+  if (hit(B_UP)) opSel = (opSel > 0) ? opSel - 1 : 9;
+  if (hit(B_DOWN)) opSel = (opSel < 9) ? opSel + 1 : 0;
   int d = 0;
   if (hit(B_LEFT)) d = -1;
   if (hit(B_RIGHT) || hit(B_CROSS)) d = 1;
   if (d) {
     if (opSel == 0) OPT.diff = clampi(OPT.diff + d, 1, 3);
     else if (opSel == 1) OPT.half = clampi(OPT.half + d, 1, 3);
-    else if (opSel == 2) OPT.stadium = (OPT.stadium + d + 4) % 4;
+    else if (opSel == 2) OPT.stadium = (OPT.stadium + d + 8) % 8;
     else if (opSel == 3) { OPT.big = !OPT.big; UserForm = 0; }
     else if (opSel == 4) OPT.ball = (OPT.ball + d + 4) % 4;
-    else if (opSel == 5) OPT.sound = !OPT.sound;
-    else if (opSel == 6) OPT.music = !OPT.music;
-    else if (opSel == 7 && hit(B_CROSS)) { saveOpt(); SCENE = SC_MENU; }
+    else if (opSel == 5) OPT.replay = !OPT.replay;
+    else if (opSel == 6) OPT.offside = !OPT.offside;
+    else if (opSel == 7) OPT.sound = !OPT.sound;
+    else if (opSel == 8) OPT.music = !OPT.music;
+    else if (opSel == 9 && hit(B_CROSS)) { saveOpt(); SCENE = SC_MENU; }
   }
   if (hit(B_TRIANGLE)) { saveOpt(); SCENE = SC_MENU; }
+}
+
+static void sceneHelp(void) {
+  drawBG(T_MENU >= 0 ? T_MENU : T_BG[0]); box(0, 0, SW, SH, COL(0, 0, 0, 175));
+  ctxt(8, helpPage == 0 ? "COMO JOGAR - CONTROLES" : "COMO JOGAR - REGRAS E DICAS", C_YELLOW, 240);
+  static const char *p0[] = {
+    "DIRECIONAL / ANALOGICO   mover o jogador", "X (com bola)   passe rasteiro na direcao",
+    "[] (com bola)   passe alto (lob)", "O (segure e solte)   chute com forca",
+    "R   correr (gasta folego)", "X (sem bola)   troca para o jogador mais perto",
+    "O (sem bola)   carrinho (arrisca falta)", "START   pausa: tatica, substituicao, sair",
+    "No chute, solte perto do fim da barra:", "forca maxima erra mais a direcao." };
+  static const char *p1[] = {
+    "FALTAS: carrinhos errados dao falta, cartao", "amarelo ou vermelho. Falta na area = penalti.",
+    "IMPEDIMENTO (campo 11x11): atacante a frente", "da penultima linha na hora do passe.",
+    "FOLEGO: a barra verde mostra o cansaco; ", "substitua quem esta vermelho (3 por jogo).",
+    "TATICA: mentalidade, pressao, largura e", "marcacao mudam o comportamento do time.",
+    "MANAGER: monte o elenco, treine, contrate", "e cumpra a meta da diretoria." };
+  const char **pg = helpPage == 0 ? p0 : p1;
+  for (int i = 0; i < 10; i++) txt(26, 30 + i * 18, pg[i], (i % 2 == 0) ? C_WHITE : C_GREY);
+  ctxt(232, "ESQ/DIR muda a pagina    TRIANGULO volta", C_GREY, 240);
+  if (hit(B_LEFT) || hit(B_RIGHT)) helpPage = !helpPage;
+  if (hit(B_TRIANGLE) || hit(B_CROSS)) SCENE = SC_MENU;
 }
 
 static void sceneResult(void) {
@@ -652,6 +885,7 @@ static void sceneResult(void) {
   ctxt(170, buf, C_GREY, 240);
   snprintf(buf, sizeof buf, "Posse de bola: %d%% x %d%%", RES.poss1, RES.poss2);
   ctxt(188, buf, C_GREY, 240);
+  if (RES.chal >= 0) { char st[8], sb[40]; starsStr(st, RES.stars); snprintf(sb, sizeof sb, "DESAFIO %s: %s", CH[RES.chal].name, st); ctxt(196, sb, C_YELLOW, 240); }
   ctxt(212, "X continuar", C_WHITE, 240);
   { int ci = (RES.s1 > RES.s2) ? 0 : ((RES.s1 < RES.s2) ? 2 : 1); static const int ord[3] = { 0, 1, 2 }; if (T_CROWD[ord[ci]] >= 0) plat_blit(T_CROWD[ord[ci]], 0, 0, 0, 0, 0, 208, 255, 255, 255, 255); }
   if (hit(B_CROSS)) onMatchEnd(RES.s1, RES.s2);
@@ -676,6 +910,7 @@ void game_init(void) {
   T_BG_COURT = plat_load_tex("gfx/bg_court.png");
   { char p[48]; snprintf(p, sizeof p, "gfx/menu_%d.png", rand() % 9); T_MENU = plat_load_tex(p); }
   T_COACH = plat_load_tex("gfx/coaches.png");
+  T_STAND = plat_load_tex("gfx/stand.png");
   T_CROWD[0] = plat_load_tex("gfx/crowd_gol.png"); T_CROWD[1] = plat_load_tex("gfx/crowd_quiet.png");
   T_CROWD[2] = plat_load_tex("gfx/crowd_sad.png"); T_CROWD[3] = plat_load_tex("gfx/crowd_fav.png");
   T_TITLE = plat_load_tex("gfx/title.png");
@@ -685,7 +920,9 @@ void game_init(void) {
   S_POST = plat_snd_load("sfx/post.wav");
   S_CHEER = plat_snd_load("sfx/cheer.wav");
   S_MUSIC = plat_snd_load("sfx/music.wav");
+  S_AMB = plat_snd_load("sfx/crowd.wav");
   loadOpt();
+  loadExtras();
   refreshSave();
   SCENE = SC_TITLE; TICK = 0;
 }
@@ -694,8 +931,12 @@ void game_frame(void) {
   TICK++;
   readPad();
   int wantMusic = OPT.music && S_MUSIC >= 0 && SCENE != SC_MATCH && SCENE != SC_PENS && SCENE != -1;
-  if (wantMusic && !musicOn) { plat_snd_loop(S_MUSIC); musicOn = 1; }
+  if (wantMusic && !musicOn) { plat_snd_loop(S_MUSIC, 26); musicOn = 1; }
   if (!wantMusic && musicOn) { plat_snd_stop(S_MUSIC); musicOn = 0; }
+  { static int ambOn = 0;
+    int wantAmb = OPT.sound && S_AMB >= 0 && SCENE == SC_MATCH && M.active && !M.paused;
+    if (wantAmb && !ambOn) { plat_snd_loop(S_AMB, 16); ambOn = 1; }
+    if (!wantAmb && ambOn) { plat_snd_stop(S_AMB); ambOn = 0; } }
   switch (SCENE) {
     case SC_TITLE: sceneTitle(); break;
     case SC_MENU: sceneMenu(); break;
@@ -708,7 +949,11 @@ void game_frame(void) {
     case SC_LEAGUE: sceneLeague(); break;
     case SC_CUP: sceneCup(); break;
     case SC_TACTICS: sceneTactics(); break;
+    case SC_HELP: sceneHelp(); break;
     case SC_MGR: sceneMgr(); break;
+    case SC_PREMATCH: scenePrematch(); break;
+    case SC_CHAL: sceneChal(); break;
+    case SC_STATS: sceneStats(); break;
     default: break;
   }
 }
@@ -754,7 +999,9 @@ void leagueSimUser(void) {
   int opp = leagueNextOpp(), g1, g2;
   simMatch(MGR.team, opp, &g1, &g2);
   RES.mode = MODE_LEAGUE; RES.s1 = g1; RES.s2 = g2; RES.t1 = MGR.team; RES.t2 = opp;
+  useMatchScorers = 0;
   leagueMatchEnd(g1, g2);
+  useMatchScorers = 1;
   mgrAfterMatch(g1, g2);
   SCENE = SC_MGR;
 }

@@ -15,7 +15,7 @@ void plat_present(void);
 void plat_input(int btn[12], int *ax, int *ay);
 int  plat_snd_load(const char *path);          /* devolve id ou -1 */
 void plat_snd_play(int id);
-void plat_snd_loop(int id);                   /* toca em loop (musica) */
+void plat_snd_loop(int id, int vol);          /* toca em loop (musica/ambiente), vol 0..128 */
 void plat_snd_stop(int id);
 unsigned plat_ticks(void);
 void plat_delay(unsigned ms);

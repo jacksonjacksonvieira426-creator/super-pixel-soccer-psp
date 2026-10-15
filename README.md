@@ -10,6 +10,14 @@ Jogo de futebol 2D de fas, nao oficial, em C (PSPSDK + SDL2).
 - Animacoes novas: chute, defesa do goleiro, torcida reagindo, 4 bolas, estadios
 - 25 times (clubes dos sprites enviados + 12 times recoloridos + LENDAS)
 
+## Novidades da v3
+- Corrida do Ronaldinho adicionada; Treino agora tem 7 craques (Neymar 2012 e 2013, Messi, Pele, CR7, Ronaldinho, Ribery)
+- 8 estadios/temas: Dia, Noite, Neve, Areia, Argila, Esmeralda, Crepusculo e Chuva (campo pequeno com imagem e campo grande desenhado com arquibancadas)
+- Tela de apresentacao antes do amistoso/futsal com regras: Normal, Gol de Ouro, Primeiro a 3 gols e Sem faltas
+- DESAFIOS: 6 missoes com 3 estrelas cada (progresso salvo)
+- RECORDES: jogos, vitorias, gols e maior goleada
+- Menu rolavel com mais opcoes, tela COMO JOGAR, replay dos gols e impedimento (campo grande) nas Opcoes
+
 ## Modos
 Amistoso, Campeonato (12 times), Copa (16 times), Modo Manager, Penaltis, Futsal, Treino, Tatica, Opcoes.
 Controles: direcional/analogico move | X passe | O chute (segure) | [] lob | R correr | START pausa.

@@ -19,7 +19,12 @@ int main(void) {
   for (int f = 0; f < 60 * 10; f++) { for (int i = 0; i < 12; i++) TEST_BTN[i] = 0; game_frame(); }
   snap("futsal");
   dbgAllAI = 0;
-  SCENE = SC_MENU; snap("menu");
+  OPT.big = 1; OPT.stadium = 2; dbgAllAI = 1; newMatch(1, 9, 0, 0, 0, MODE_FRIENDLY); SCENE = SC_MATCH; for (int f = 0; f < 60 * 8; f++) { for (int i = 0; i < 12; i++) TEST_BTN[i] = 0; game_frame(); } snap("neve");
+  OPT.stadium = 6; newMatch(1, 9, 0, 0, 0, MODE_FRIENDLY); for (int f = 0; f < 60 * 8; f++) { for (int i = 0; i < 12; i++) TEST_BTN[i] = 0; game_frame(); } snap("crep");
+  OPT.big = 0; OPT.stadium = 7; newMatch(1, 9, 0, 0, 0, MODE_FRIENDLY); for (int f = 0; f < 60 * 6; f++) { for (int i = 0; i < 12; i++) TEST_BTN[i] = 0; game_frame(); } snap("chuva");
+  dbgAllAI = 0; OPT.stadium = 0;
+  PRE_dummy: ;
+  SCENE = SC_MENU; snap("menu"); SCENE = SC_CHAL; snap("chal"); SCENE = SC_STATS; snap("stats"); SCENE = SC_TRAINSEL; snap("trainsel"); SCENE = SC_PREMATCH; snap("prematch");
   SCENE = SC_TACTICS; snap("tactics");
   SCENE = SC_MENU; game_debug_set(0, 3); tap(B_CROSS); TS_dummy: ;
   snap("teamsel");

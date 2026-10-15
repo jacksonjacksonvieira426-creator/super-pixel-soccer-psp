@@ -146,10 +146,10 @@ void plat_snd_play(int id) {
   snds[id].pos = 0; snds[id].loop = 0; snds[id].vol = SDL_MIX_MAXVOLUME / 2; snds[id].playing = 1;
   SDL_UnlockAudioDevice(adev);
 }
-void plat_snd_loop(int id) {
+void plat_snd_loop(int id, int vol) {
   if (id < 0 || id >= nsnd || !adev) return;
   SDL_LockAudioDevice(adev);
-  snds[id].pos = 0; snds[id].loop = 1; snds[id].vol = SDL_MIX_MAXVOLUME / 5; snds[id].playing = 1;
+  snds[id].pos = 0; snds[id].loop = 1; snds[id].vol = vol; snds[id].playing = 1;
   SDL_UnlockAudioDevice(adev);
 }
 void plat_snd_stop(int id) {
