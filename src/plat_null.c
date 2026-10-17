@@ -6,6 +6,7 @@ extern int SCENE;
 void plat_init(void) {}
 void plat_quit(void) {}
 int plat_load_tex(const char *p) { static int n = 0; return n++; }
+int plat_load_tex_fast(const char *p) { return plat_load_tex(p); }
 void plat_blit(int tex, int sx, int sy, int w, int h, int dx, int dy, int r, int g, int b, int a) {
   TEST_BLITS++;
   if (tex < 0) { *(volatile int *)0 = 1; }

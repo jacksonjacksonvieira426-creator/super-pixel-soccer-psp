@@ -10,6 +10,10 @@ Jogo de futebol 2D de fas, nao oficial, em C (PSPSDK + SDL2).
 - Animacoes novas: chute, defesa do goleiro, torcida reagindo, 4 bolas, estadios
 - 25 times (clubes dos sprites enviados + 12 times recoloridos + LENDAS)
 
+## Novidades da v4
+- Os 6 campos enviados agora sao estadios jogaveis (Opcoes > ESTADIO ou na apresentacao): Arena Carioca, Parque Verde, Templo Vermelho, Palacio Branco, Teatro dos Sonhos e Colosso. Cada um tem a perspectiva medida para os jogadores ficarem nas linhas.
+- Menus mais leves: uma unica imagem de fundo ja escurecida, texto com sombra embutida (metade das chamadas de desenho), fundos opacos em 16 bits e estadios carregados so quando escolhidos.
+
 ## Novidades da v3
 - Corrida do Ronaldinho adicionada; Treino agora tem 7 craques (Neymar 2012 e 2013, Messi, Pele, CR7, Ronaldinho, Ribery)
 - 8 estadios/temas: Dia, Noite, Neve, Areia, Argila, Esmeralda, Crepusculo e Chuva (campo pequeno com imagem e campo grande desenhado com arquibancadas)

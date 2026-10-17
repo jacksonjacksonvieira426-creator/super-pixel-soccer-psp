@@ -29,7 +29,7 @@ int main(void) {
   }
   /* cenas novas */
   for (int sc = SC_PREMATCH; sc <= SC_STATS; sc++) { SCENE = sc; for (int k = 0; k < 40; k++) tick(0); }
-  for (int th = 0; th < 8; th++) { OPT.stadium = th; OPT.big = 1; newMatch(1, 9, 0, 0, 0, MODE_FRIENDLY); SCENE = SC_MATCH; for (int k = 0; k < 200; k++) tick(0); OPT.big = 0; newMatch(1, 9, 0, 0, 0, MODE_FRIENDLY); for (int k = 0; k < 100; k++) tick(0); }
+  for (int th = 0; th < 14; th++) { OPT.stadium = th; OPT.big = 1; newMatch(1, 9, 0, 0, 0, MODE_FRIENDLY); SCENE = SC_MATCH; for (int k = 0; k < 200; k++) tick(0); OPT.big = 0; newMatch(1, 9, 0, 0, 0, MODE_FRIENDLY); for (int k = 0; k < 100; k++) tick(0); }
   remove("extras.txt");
   return 0;
 }

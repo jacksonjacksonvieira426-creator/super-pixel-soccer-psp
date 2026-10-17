@@ -150,7 +150,7 @@ static void moneyStr(char *out, int n, int k) {
   if (k >= 1000 || k <= -1000) snprintf(out, n, "R$ %d.%d mi", k / 1000, abs(k % 1000) / 100);
   else snprintf(out, n, "R$ %d mil", k);
 }
-static void bg(void) { drawBG(T_MENU >= 0 ? T_MENU : T_BG[0]); box(0, 0, SW, SH, COL(0, 0, 0, 165)); }
+static void bg(void) { drawBG(T_MENU); }
 
 static const char *tip(void) {
   int s[4] = { 0, 0, 0, 0 }, n[4] = { 0, 0, 0, 0 };

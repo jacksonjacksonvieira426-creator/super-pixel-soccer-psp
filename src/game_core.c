@@ -1,11 +1,12 @@
 /* Super Pixel Soccer PSP - nucleo: utilitarios e motor da partida */
 #include "game.h"
+#include "stadiums.h"
 
 Match M;
 Opt OPT = { 2, 2, 1, 0, 1, 0, 0, 1, 1 };
 Tac UserTac = { 1, 1, 1, 0 };
 int SCENE = SC_TITLE, TICK = 0, UserForm = 0, NextRule = 0, NextChal = -1;
-int T_ATLAS = -1, T_BG[8] = { -1, -1, -1, -1, -1, -1, -1, -1 }, T_STAND = -1, T_BG_COURT = -1, T_TITLE = -1, T_FONT = -1, T_COACH = -1, T_MENU = -1;
+int T_ATLAS = -1, T_BG[14] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 }, T_STAND = -1, T_BG_COURT = -1, T_TITLE = -1, T_FONT = -1, T_COACH = -1, T_MENU = -1;
 int T_CROWD[4] = { -1, -1, -1, -1 };
 int S_KICK = -1, S_WHISTLE = -1, S_GOAL = -1, S_POST = -1, S_CHEER = -1, S_MUSIC = -1, S_AMB = -1;
 Result RES;
@@ -58,11 +59,14 @@ const char *playerName(const Player *p) {
   if (p->gk && p->roster < 0) return "GOLEIRO";
   return nameOf(p->nameIdx);
 }
-const char *THEME_NAMES[8] = { "DIA", "NOITE", "NEVE", "AREIA", "ARGILA", "ESMERALDA", "CREPUSCULO", "CHUVA" };
+const char *THEME_NAMES[14] = { "DIA", "NOITE", "NEVE", "AREIA", "ARGILA", "ESMERALDA", "CREPUSCULO", "CHUVA",
+  "ARENA CARIOCA", "PARQUE VERDE", "TEMPLO VERMELHO", "PALACIO BRANCO", "TEATRO DOS SONHOS", "COLOSSO" };
 int bgForTheme(int theme) {
-  static const char *files[8] = { "gfx/bg_field.png", "gfx/bg_night.png", "gfx/bg_snow.png", "gfx/bg_sand.png", "gfx/bg_clay.png", "gfx/bg_emerald.png", "gfx/bg_dusk.png", "gfx/bg_rain.png" };
-  theme = clampi(theme, 0, 7);
-  if (T_BG[theme] < 0 && theme > 0) T_BG[theme] = plat_load_tex(files[theme]);
+  static const char *files[14] = { "gfx/bg_field.png", "gfx/bg_night.png", "gfx/bg_snow.png", "gfx/bg_sand.png", "gfx/bg_clay.png",
+    "gfx/bg_emerald.png", "gfx/bg_dusk.png", "gfx/bg_rain.png", "gfx/bg_stad_8.png", "gfx/bg_stad_9.png", "gfx/bg_stad_10.png",
+    "gfx/bg_stad_11.png", "gfx/bg_stad_12.png", "gfx/bg_stad_13.png" };
+  theme = clampi(theme, 0, 13);
+  if (T_BG[theme] < 0 && theme > 0) T_BG[theme] = plat_load_tex_fast(files[theme]);
   return (T_BG[theme] >= 0) ? T_BG[theme] : T_BG[0];
 }
 int bgTex(void) { return M.futsal ? T_BG_COURT : bgForTheme(OPT.stadium); }
@@ -105,16 +109,17 @@ static void drawText(int x, int y, const char *s, Col c) {
   for (; *s; s++, x += 8) {
     int ch = (unsigned char)*s;
     if (ch < 32 || ch > 127) ch = '?';
+    if (ch == ' ') continue;
     int idx = ch - 32;
-    plat_blit(T_FONT, (idx % 16) * 8, (idx / 16) * 11, 8, 11, x, y, c.r, c.g, c.b, c.a);
+    plat_blit(T_FONT, (idx % 16) * 9, (idx / 16) * 12, 9, 12, x, y, c.r, c.g, c.b, c.a);
   }
 }
-void txt(int x, int y, const char *s, Col c) { drawText(x + 1, y + 1, s, C_BLACK); drawText(x, y, s, c); }
+void txt(int x, int y, const char *s, Col c) { drawText(x, y, s, c); }
 void ctxt(int y, const char *s, Col c, int cx) { txt(cx - (int)strlen(s) * 4, y, s, c); }
 void box(int x, int y, int w, int h, Col c) { plat_rect(x, y, w, h, c.r, c.g, c.b, c.a); }
 void drawBG(int tex) {
   if (tex >= 0) plat_blit(tex, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255);
-  else plat_clear(30, 110, 40);
+  else plat_clear(12, 20, 32);
 }
 void drawFrame(const short *fr, float x, float y) {
   if (T_ATLAS < 0) return;
@@ -142,7 +147,7 @@ void loadOpt(void) {
     int n = fscanf(f, "%d %d %d %d %d %d %d %d %d %d %d %d %d", &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9], &v[10], &v[11], &v[12]);
     if (n >= 3 && v[0] >= 1 && v[0] <= 3 && v[1] >= 1 && v[1] <= 3) {
       OPT.diff = v[0]; OPT.half = v[1]; OPT.sound = v[2];
-      OPT.stadium = (n >= 4) ? clampi(v[3], 0, 7) : 0; OPT.music = (n >= 5) ? v[4] : 1;
+      OPT.stadium = (n >= 4) ? clampi(v[3], 0, 13) : 0; OPT.music = (n >= 5) ? v[4] : 1;
       OPT.ball = (n >= 6) ? clampi(v[5], 0, 3) : 0; OPT.big = (n >= 7) ? (v[6] != 0) : 0;
       if (n >= 13) {
         OPT.replay = (v[7] != 0); OPT.offside = (v[8] != 0);
@@ -160,8 +165,22 @@ void setFieldSize(int big) {
   else { M.fl = PFL; M.fw = PFW; M.gy1 = PGY1; M.gy2 = PGY2; M.sc = 1; M.spd = 1; M.bsp = 1; M.rs = 1; }
 }
 
+static int useStadGeo(void) { return OPT.stadium >= 8 && !(M.active && M.futsal); }
+static float anchorY(const StGeo *g, float v) {
+  int i = 0;
+  if (v <= 0) i = 0; else if (v >= 1) i = 5; else { while (i < 5 && v > V7[i + 1]) i++; }
+  float t = (v - V7[i]) / (V7[i + 1] - V7[i]);
+  return g->y[i] + (g->y[i + 1] - g->y[i]) * t;
+}
 void toScreenSmall(float x, float y, float *sx, float *sy) {
   float u = x / PFL, v = y / PFW;
+  if (useStadGeo()) {
+    const StGeo *g = &STG[clampi(OPT.stadium - 8, 0, 5)];
+    float yy = anchorY(g, v), t = (yy - g->y[0]) / (g->y[6] - g->y[0]);
+    float l = g->l0 + (g->l1 - g->l0) * t, r = g->r0 + (g->r1 - g->r0) * t;
+    *sx = l + (r - l) * u; *sy = yy;
+    return;
+  }
   float f = (v < 0) ? v : powf(v, 1.14f);
   float l = 58 - 50 * f, r = 422 + 50 * f;
   *sx = l + (r - l) * u;

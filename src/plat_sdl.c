@@ -12,7 +12,8 @@ static int running = 1;
 static SDL_Window *win;
 static SDL_Renderer *ren;
 static SDL_Joystick *joy;
-static SDL_Texture *texs[40];
+static SDL_Texture *texs[48];
+static int tmod[48][4];
 static int ntex = 0;
 
 #define NSND 8
@@ -64,18 +65,36 @@ void plat_quit(void) {
   sceKernelExitGame();
 }
 int plat_load_tex(const char *path) {
-  if (ntex >= 40) return -1;
+  if (ntex >= 48) return -1;
   SDL_Texture *t = IMG_LoadTexture(ren, path);
   if (!t) return -1;
   SDL_SetTextureBlendMode(t, SDL_BLENDMODE_BLEND);
   texs[ntex] = t;
+  tmod[ntex][0] = tmod[ntex][1] = tmod[ntex][2] = tmod[ntex][3] = 255;
   return ntex++;
+}
+int plat_load_tex_fast(const char *path) {
+  if (ntex >= 48) return -1;
+  SDL_Surface *sf = IMG_Load(path);
+  if (!sf) return -1;
+  SDL_Surface *c = SDL_ConvertSurfaceFormat(sf, SDL_PIXELFORMAT_RGB565, 0);
+  SDL_Texture *t = SDL_CreateTextureFromSurface(ren, c ? c : sf);
+  if (c) SDL_FreeSurface(c);
+  SDL_FreeSurface(sf);
+  if (!t) return -1;
+  texs[ntex] = t;
+  tmod[ntex][0] = tmod[ntex][1] = tmod[ntex][2] = tmod[ntex][3] = 255;
+  return ntex++;
+}
+static void setmod(int tex, int r, int g, int b, int a) {
+  int *m = tmod[tex];
+  if (m[0] != r || m[1] != g || m[2] != b) { SDL_SetTextureColorMod(texs[tex], r, g, b); m[0] = r; m[1] = g; m[2] = b; }
+  if (m[3] != a) { SDL_SetTextureAlphaMod(texs[tex], a); m[3] = a; }
 }
 void plat_blit(int tex, int sx, int sy, int w, int h, int dx, int dy, int r, int g, int b, int a) {
   if (tex < 0) return;
   SDL_Texture *t = texs[tex];
-  SDL_SetTextureColorMod(t, r, g, b);
-  SDL_SetTextureAlphaMod(t, a);
+  setmod(tex, r, g, b, a);
   if (w == 0 || h == 0) {
     int tw, th; SDL_QueryTexture(t, NULL, NULL, &tw, &th);
     SDL_Rect d = { dx, dy, tw, th };
@@ -88,8 +107,7 @@ void plat_blit(int tex, int sx, int sy, int w, int h, int dx, int dy, int r, int
 void plat_blit_flip(int tex, int sx, int sy, int w, int h, int dx, int dy, int flip) {
   if (tex < 0) return;
   SDL_Texture *t = texs[tex];
-  SDL_SetTextureColorMod(t, 255, 255, 255);
-  SDL_SetTextureAlphaMod(t, 255);
+  setmod(tex, 255, 255, 255, 255);
   SDL_Rect s = { sx, sy, w, h }, d = { dx, dy, w, h };
   SDL_RenderCopyEx(ren, t, &s, &d, 0, NULL, flip ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
 }

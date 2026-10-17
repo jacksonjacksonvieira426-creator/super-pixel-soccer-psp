@@ -65,7 +65,7 @@ void startMatchPenalty(int att) {
 
 static void scenePens(void) {
   if (!PEN.active) { SCENE = SC_MENU; return; }
-  drawBG(bgForTheme(OPT.stadium));
+  drawBG((M.active && M.futsal) ? T_BG_COURT : bgForTheme(OPT.stadium));
   int ti = PEN.turn, kicker = (ti == 1);
   float spotX = PFL - 110, sx0, sy0, gsx, gsy;
   toScreenSmall(spotX, PFW / 2, &sx0, &sy0);
@@ -350,7 +350,7 @@ static void leagueMatchEnd(int s1, int s2) {
 
 static void sceneLeague(void) {
   char buf[128];
-  drawBG(T_BG[0]); box(0, 0, SW, SH, COL(0, 0, 0, 170));
+  drawBG(T_MENU); 
   if (hit(B_SQUARE)) showSc = !showSc;
   if (showSc) {
     int tt[10], nn[10], gg[10];
@@ -453,7 +453,7 @@ static void cupMatchEnd(int s1, int s2) {
 
 static void sceneCup(void) {
   char buf[128];
-  drawBG(T_BG[0]); box(0, 0, SW, SH, COL(0, 0, 0, 170));
+  drawBG(T_MENU); 
   ctxt(8, "COPA", C_YELLOW, 240);
   if (CP.champion) {
     ctxt(110, "VOCE E O CAMPEAO DA COPA!", C_YELLOW, 240);
@@ -530,7 +530,7 @@ void onMatchEnd(int s1, int s2) {
 }
 
 static void sceneTitle(void) {
-  drawBG(T_BG[0]); box(0, 0, SW, SH, COL(0, 0, 0, 90));
+  drawBG(T_MENU); 
   if (T_TITLE >= 0) plat_blit(T_TITLE, 0, 0, 0, 0, 10, 20, 255, 255, 255, 255);
   else ctxt(60, "SUPER PIXEL SOCCER PSP", C_YELLOW, 240);
   static const int kits[5] = { KIT_NEYMAR, KIT_MESSI, KIT_PELE, KIT_CR7, KIT_MARA };
@@ -548,7 +548,7 @@ static void sceneMenu(void) {
   if (mgrSaved()) acts[n++] = A_MCONT;
   for (int a = A_FRIENDLY; a <= A_QUIT; a++) acts[n++] = a;
   if (menuSel >= n) menuSel = 0;
-  drawBG(T_MENU >= 0 ? T_MENU : T_BG[0]); box(0, 0, SW, SH, COL(0, 0, 0, 150));
+  drawBG(T_MENU); 
   ctxt(6, "MENU PRINCIPAL", C_YELLOW, 240);
   int rows = 9, top = clampi(menuSel - 4, 0, n > rows ? n - rows : 0);
   for (int i = top; i < n && i < top + rows; i++) {
@@ -639,7 +639,7 @@ static void starsStr(char *out, int n) { out[0] = 0; for (int i = 0; i < 3; i++)
 
 static void sceneChal(void) {
   char b[96], st[8];
-  drawBG(T_MENU >= 0 ? T_MENU : T_BG[0]); box(0, 0, SW, SH, COL(0, 0, 0, 165));
+  drawBG(T_MENU); 
   ctxt(8, "DESAFIOS", C_YELLOW, 240);
   int tot = 0;
   for (int i = 0; i < 6; i++) {
@@ -668,7 +668,7 @@ static void sceneChal(void) {
 
 static void sceneStats(void) {
   char b[96];
-  drawBG(T_MENU >= 0 ? T_MENU : T_BG[0]); box(0, 0, SW, SH, COL(0, 0, 0, 170));
+  drawBG(T_MENU); 
   ctxt(10, "RECORDES", C_YELLOW, 240);
   snprintf(b, sizeof b, "Jogos: %d", STS.games); txt(120, 40, b, C_WHITE);
   snprintf(b, sizeof b, "Vitorias: %d", STS.wins); txt(120, 58, b, C_GREEN);
@@ -689,7 +689,7 @@ static void scenePrematch(void) {
   static const char *rn[4] = { "NORMAL", "GOL DE OURO", "1o A 3 GOLS", "SEM FALTAS" };
   static const char *hn[3] = { "CURTO (45s)", "MEDIO (90s)", "LONGO (150s)" };
   static const char *dn[3] = { "FACIL", "NORMAL", "DIFICIL" };
-  drawBG(PRE.fut ? T_BG_COURT : bgForTheme(OPT.stadium)); box(0, 0, SW, SH, COL(0, 0, 0, 120));
+  drawBG(PRE.fut ? T_BG_COURT : bgForTheme(OPT.stadium)); box(60, 116, 360, 130, COL(0, 0, 0, 150)); 
   ctxt(6, "APRESENTACAO", C_YELLOW, 240);
   const Team *ta = &TEAMS[PRE.a], *tb = &TEAMS[PRE.b];
   box(20, 24, 190, 84, C_PANEL); box(270, 24, 190, 84, C_PANEL);
@@ -709,7 +709,7 @@ static void scenePrematch(void) {
   const char *lab[5] = { "REGRA", "ESTADIO", "TEMPO", "DIFICULDADE", "JOGAR" };
   char val[5][32];
   snprintf(val[0], 32, "%s", rn[PRE.rule]);
-  snprintf(val[1], 32, "%s", PRE.fut ? "QUADRA" : THEME_NAMES[clampi(OPT.stadium, 0, 7)]);
+  snprintf(val[1], 32, "%s", PRE.fut ? "QUADRA" : THEME_NAMES[clampi(OPT.stadium, 0, 13)]);
   snprintf(val[2], 32, "%s", hn[clampi(OPT.half, 1, 3) - 1]);
   snprintf(val[3], 32, "%s", dn[clampi(OPT.diff, 1, 3) - 1]);
   val[4][0] = 0;
@@ -725,7 +725,7 @@ static void scenePrematch(void) {
   int d = 0; if (hit(B_LEFT)) d = -1; if (hit(B_RIGHT)) d = 1;
   if (d) {
     if (PRE.sel == 0) PRE.rule = (PRE.rule + d + 4) % 4;
-    else if (PRE.sel == 1 && !PRE.fut) OPT.stadium = (OPT.stadium + d + 8) % 8;
+    else if (PRE.sel == 1 && !PRE.fut) OPT.stadium = (OPT.stadium + d + 14) % 14;
     else if (PRE.sel == 2) OPT.half = clampi(OPT.half + d, 1, 3);
     else if (PRE.sel == 3) OPT.diff = clampi(OPT.diff + d, 1, 3);
   }
@@ -735,7 +735,7 @@ static void scenePrematch(void) {
 
 static void sceneTeamSel(void) {
   char buf[64];
-  drawBG(T_MENU >= 0 ? T_MENU : T_BG[0]); box(0, 0, SW, SH, COL(0, 0, 0, 160));
+  drawBG(T_MENU); 
   ctxt(8, TS.title, C_YELLOW, 240);
   int n = TS.only ? NCLUBS : NTEAMS;
   int top = clampi(TS.idx - 4, 0, n > 9 ? n - 9 : 0);
@@ -777,7 +777,7 @@ static void sceneTeamSel(void) {
 }
 
 static void sceneTactics(void) {
-  drawBG(T_MENU >= 0 ? T_MENU : T_BG[0]); box(0, 0, SW, SH, COL(0, 0, 0, 160));
+  drawBG(T_MENU); 
   ctxt(18, "TATICA E FORMACAO", C_YELLOW, 240);
   ctxt(34, OPT.big ? "(campo grande: 11 x 11)" : "(campo pequeno: 6 x 6)", C_GREY, 240);
   if (UserForm >= formCount(formKind(0))) UserForm = 0;
@@ -790,7 +790,7 @@ static const int STAR_KITS[7] = { KIT_NEYMAR, KIT_NEY13, KIT_MESSI, KIT_PELE, KI
 static const char *STAR_NAMES[7] = { "NEYMAR", "NEY 13", "MESSI", "PELE", "CR7", "DINHO", "RIBERY" };
 
 static void sceneTrainSel(void) {
-  drawBG(T_BG[0]); box(0, 0, SW, SH, COL(0, 0, 0, 150));
+  drawBG(T_MENU); 
   ctxt(10, "TREINO - ESCOLHA O CRAQUE", C_YELLOW, 240);
   for (int i = 0; i < 7; i++) {
     int x = 40 + i * 66;
@@ -812,12 +812,12 @@ static void sceneOpts(void) {
   static const char *hn[3] = { "CURTO (45s)", "MEDIO (90s)", "LONGO (150s)" };
   
   static const char *bn[4] = { "CLASSICA", "BRAZUCA", "INCYTE", "MAXIM" };
-  drawBG(T_MENU >= 0 ? T_MENU : T_BG[0]); box(0, 0, SW, SH, COL(0, 0, 0, 160));
+  drawBG(T_MENU); 
   ctxt(6, "OPCOES", C_YELLOW, 240);
   char b[10][48];
   snprintf(b[0], 48, "DIFICULDADE: %s", dn[clampi(OPT.diff, 1, 3) - 1]);
   snprintf(b[1], 48, "TEMPO POR TEMPO: %s", hn[clampi(OPT.half, 1, 3) - 1]);
-  snprintf(b[2], 48, "ESTADIO: %s", THEME_NAMES[clampi(OPT.stadium, 0, 7)]);
+  snprintf(b[2], 48, "ESTADIO: %s", THEME_NAMES[clampi(OPT.stadium, 0, 13)]);
   snprintf(b[3], 48, "CAMPO: %s", OPT.big ? "GRANDE 11x11" : "PEQUENO 6x6");
   snprintf(b[4], 48, "BOLA: %s", bn[clampi(OPT.ball, 0, 3)]);
   snprintf(b[5], 48, "REPLAY DOS GOLS: %s", OPT.replay ? "LIGADO" : "DESLIGADO");
@@ -839,7 +839,7 @@ static void sceneOpts(void) {
   if (d) {
     if (opSel == 0) OPT.diff = clampi(OPT.diff + d, 1, 3);
     else if (opSel == 1) OPT.half = clampi(OPT.half + d, 1, 3);
-    else if (opSel == 2) OPT.stadium = (OPT.stadium + d + 8) % 8;
+    else if (opSel == 2) OPT.stadium = (OPT.stadium + d + 14) % 14;
     else if (opSel == 3) { OPT.big = !OPT.big; UserForm = 0; }
     else if (opSel == 4) OPT.ball = (OPT.ball + d + 4) % 4;
     else if (opSel == 5) OPT.replay = !OPT.replay;
@@ -852,7 +852,7 @@ static void sceneOpts(void) {
 }
 
 static void sceneHelp(void) {
-  drawBG(T_MENU >= 0 ? T_MENU : T_BG[0]); box(0, 0, SW, SH, COL(0, 0, 0, 175));
+  drawBG(T_MENU); 
   ctxt(8, helpPage == 0 ? "COMO JOGAR - CONTROLES" : "COMO JOGAR - REGRAS E DICAS", C_YELLOW, 240);
   static const char *p0[] = {
     "DIRECIONAL / ANALOGICO   mover o jogador", "X (com bola)   passe rasteiro na direcao",
@@ -875,7 +875,7 @@ static void sceneHelp(void) {
 
 static void sceneResult(void) {
   char buf[96];
-  drawBG(T_BG[0]); box(0, 0, SW, SH, COL(0, 0, 0, 160));
+  drawBG(T_MENU); 
   ctxt(26, "RESULTADO FINAL", C_YELLOW, 240);
   ctxt(70, TEAMS[RES.t1].name, C_WHITE, 240);
   snprintf(buf, sizeof buf, "%d  x  %d", RES.s1, RES.s2);
@@ -902,13 +902,9 @@ void game_init(void) {
   ctxt(130, "Carregando...", C_WHITE, 240);
   plat_present();
   T_ATLAS = plat_load_tex("gfx/atlas.png");
-  T_BG[0] = plat_load_tex("gfx/bg_field.png");
-  T_BG[1] = plat_load_tex("gfx/bg_night.png");
-  T_BG[2] = plat_load_tex("gfx/bg_snow.png");
-  T_BG[3] = plat_load_tex("gfx/bg_sand.png");
-  for (int i = 1; i < 4; i++) if (T_BG[i] < 0) T_BG[i] = T_BG[0];
-  T_BG_COURT = plat_load_tex("gfx/bg_court.png");
-  { char p[48]; snprintf(p, sizeof p, "gfx/menu_%d.png", rand() % 9); T_MENU = plat_load_tex(p); }
+  T_BG[0] = plat_load_tex_fast("gfx/bg_field.png");
+  T_BG_COURT = plat_load_tex_fast("gfx/bg_court.png");
+  T_MENU = plat_load_tex_fast("gfx/menu.png");
   T_COACH = plat_load_tex("gfx/coaches.png");
   T_STAND = plat_load_tex("gfx/stand.png");
   T_CROWD[0] = plat_load_tex("gfx/crowd_gol.png"); T_CROWD[1] = plat_load_tex("gfx/crowd_quiet.png");

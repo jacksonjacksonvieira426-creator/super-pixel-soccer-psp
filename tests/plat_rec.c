@@ -11,6 +11,7 @@ void rec_close(void) { if (out) fclose(out); out = NULL; }
 void plat_init(void) {}
 void plat_quit(void) {}
 int plat_load_tex(const char *p) { strncpy(paths[np], p, 63); return np++; }
+int plat_load_tex_fast(const char *p) { return plat_load_tex(p); }
 void plat_blit(int t, int sx, int sy, int w, int h, int dx, int dy, int r, int g, int b, int a) { if (out) fprintf(out, "B %d %d %d %d %d %d %d %d %d %d %d\n", t, sx, sy, w, h, dx, dy, r, g, b, a); }
 void plat_blit_flip(int t, int sx, int sy, int w, int h, int dx, int dy, int fl) { if (out) fprintf(out, "F %d %d %d %d %d %d %d %d\n", t, sx, sy, w, h, dx, dy, fl); }
 void plat_rect(int x, int y, int w, int h, int r, int g, int b, int a) { if (out) fprintf(out, "R %d %d %d %d %d %d %d %d\n", x, y, w, h, r, g, b, a); }

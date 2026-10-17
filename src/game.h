@@ -88,12 +88,12 @@ extern Opt OPT;
 extern Team TEAMS[NTEAMS];
 extern Tac UserTac;
 extern int SCENE, TICK, UserForm, NextRule, NextChal;
-extern int T_ATLAS, T_BG[8], T_STAND, T_BG_COURT, T_TITLE, T_FONT, T_COACH, T_MENU, T_CROWD[4];
+extern int T_ATLAS, T_BG[14], T_STAND, T_BG_COURT, T_TITLE, T_FONT, T_COACH, T_MENU, T_CROWD[4];
 #define T_BG_FIELD T_BG[0]
 extern int S_KICK, S_WHISTLE, S_GOAL, S_POST, S_CHEER, S_MUSIC, S_AMB;
 int bgTex(void);
 int bgForTheme(int theme);
-extern const char *THEME_NAMES[8];
+extern const char *THEME_NAMES[14];
 void chalSetup(int id);
 int chalStars(int id, int s1, int s2, int minute);
 void statsRecord(int s1, int s2);

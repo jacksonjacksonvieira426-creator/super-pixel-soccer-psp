@@ -4,7 +4,8 @@
 
 void plat_init(void);
 void plat_quit(void);
-int  plat_load_tex(const char *path);          /* devolve id ou -1 */
+int  plat_load_tex(const char *path);
+int  plat_load_tex_fast(const char *path);      /* fundos opacos: textura de 16 bits (mais leve) */          /* devolve id ou -1 */
 void plat_blit(int tex, int sx, int sy, int w, int h, int dx, int dy,
                int r, int g, int b, int a);    /* w=h=0: textura inteira */
 void plat_blit_flip(int tex, int sx, int sy, int w, int h, int dx, int dy, int flip);
